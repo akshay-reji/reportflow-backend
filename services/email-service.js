@@ -15,7 +15,7 @@ class EmailService {
       this.resend = null;
     }
   }
-  }
+  // ✅ REMOVED THE EXTRA CLOSING BRACE THAT WAS HERE
 
   async sendReport(tenant, reportData, pdfBuffer, reportId) {
     // Check if Resend is available for non-SMTP delivery
