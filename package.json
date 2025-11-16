@@ -19,11 +19,8 @@
     "handlebars": "^4.7.8",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.10",
-    "puppeteer-core": "^21.5.2",
+    "puppeteer-core": "^10.1.0",  
     "resend": "^2.1.0",
     "serverless-http": "^3.2.0"
-  },
-  "devDependencies": {
-    "netlify-lambda": "^2.0.16"
   }
 }
