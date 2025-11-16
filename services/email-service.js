@@ -1,59 +1,134 @@
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const encryptionService = require('./encryption-service');
+const supabase = require('../lib/supabase'); // ✅ FIXED: Added missing import
 
 class EmailService {
   constructor() {
     this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
-  async sendReport(tenant, reportData, pdfBuffer) {
+  async sendReport(tenant, reportData, pdfBuffer, reportId) {
+    // ✅ FIXED: Properly construct emailData from parameters
     const emailData = {
       to: reportData.client_email,
       subject: reportData.subject,
       html: reportData.htmlContent,
-      attachments: [{
-        filename: `report-${reportData.report_id}.pdf`,
+      attachments: pdfBuffer ? [{
+        filename: `report-${reportData.report_id || reportId || 'test'}.pdf`,
         content: pdfBuffer,
         contentType: 'application/pdf'
-      }],
+      }] : [],
       agency_name: tenant.company_name
     };
 
-    let result;
-    
+    let attemptNumber = 1;
+    let finalResult;
+
+    console.log(`📧 Starting email delivery for tenant: ${tenant.id}, provider: ${tenant.email_provider}`);
+
     // Try agency SMTP first if configured and verified
     if (tenant.email_provider === 'smtp' && tenant.smtp_config && tenant.smtp_verified) {
       try {
-        console.log(`📧 Attempting SMTP delivery for tenant: ${tenant.id}`);
-        result = await this.sendViaSMTP(tenant, emailData);
-        result.delivery_method = 'smtp';
-        result.sent_via = 'agency_smtp';
+        console.log(`📧 Attempt ${attemptNumber}: SMTP delivery for tenant: ${tenant.id}`);
+        finalResult = await this.sendViaSMTP(tenant, emailData);
+        finalResult.delivery_method = 'smtp';
+        finalResult.provider = 'agency_smtp';
+        finalResult.attempt_number = attemptNumber;
+        
+        // Log successful SMTP attempt
+        await this.logEmailDelivery(tenant.id, reportId, {
+          attempt_number: attemptNumber,
+          delivery_method: 'smtp',
+          provider_used: 'agency_smtp',
+          success: true,
+          message_id: finalResult.messageId
+        });
+
       } catch (smtpError) {
-        console.log(`❌ SMTP failed for tenant ${tenant.id}, falling back to Resend:`, smtpError.message);
+        console.log(`❌ SMTP attempt ${attemptNumber} failed:`, smtpError.message);
+        
+        // Log failed SMTP attempt
+        await this.logEmailDelivery(tenant.id, reportId, {
+          attempt_number: attemptNumber,
+          delivery_method: 'smtp',
+          provider_used: 'agency_smtp',
+          success: false,
+          error_message: smtpError.message
+        });
+
+        attemptNumber++;
         
         // Fallback to Resend
-        result = await this.sendViaResend(tenant, emailData);
-        result.delivery_method = 'resend_fallback';
-        result.sent_via = 'resend';
-        result.fallback_reason = smtpError.message;
-        
-        // Update tenant with error for monitoring
-        await this.updateTenantError(tenant.id, smtpError.message);
+        try {
+          console.log(`📧 Attempt ${attemptNumber}: Resend fallback for tenant: ${tenant.id}`);
+          finalResult = await this.sendViaResend(tenant, emailData);
+          finalResult.delivery_method = 'resend_fallback';
+          finalResult.provider = 'resend';
+          finalResult.fallback_reason = smtpError.message;
+          finalResult.attempt_number = attemptNumber;
+          
+          // Log successful fallback
+          await this.logEmailDelivery(tenant.id, reportId, {
+            attempt_number: attemptNumber,
+            delivery_method: 'resend',
+            provider_used: 'resend',
+            success: true,
+            message_id: finalResult.messageId
+          });
+
+        } catch (resendError) {
+          // Log failed fallback
+          await this.logEmailDelivery(tenant.id, reportId, {
+            attempt_number: attemptNumber,
+            delivery_method: 'resend',
+            provider_used: 'resend',
+            success: false,
+            error_message: resendError.message
+          });
+          
+          throw resendError;
+        }
       }
     } else {
-      // Use Resend as primary
-      console.log(`📧 Using Resend delivery for tenant: ${tenant.id}`);
-      result = await this.sendViaResend(tenant, emailData);
-      result.delivery_method = 'resend';
-      result.sent_via = 'resend';
+      // Primary Resend delivery
+      try {
+        console.log(`📧 Primary Resend delivery for tenant: ${tenant.id}`);
+        finalResult = await this.sendViaResend(tenant, emailData);
+        finalResult.delivery_method = 'resend';
+        finalResult.provider = 'resend';
+        finalResult.attempt_number = 1;
+        
+        // Log Resend attempt
+        await this.logEmailDelivery(tenant.id, reportId, {
+          attempt_number: 1,
+          delivery_method: 'resend',
+          provider_used: 'resend',
+          success: finalResult.success,
+          message_id: finalResult.messageId,
+          error_message: finalResult.error
+        });
+      } catch (resendError) {
+        // Log failed Resend attempt
+        await this.logEmailDelivery(tenant.id, reportId, {
+          attempt_number: 1,
+          delivery_method: 'resend',
+          provider_used: 'resend',
+          success: false,
+          error_message: resendError.message
+        });
+        throw resendError;
+      }
     }
 
-    return result;
+    console.log(`✅ Email delivery completed for tenant: ${tenant.id}`);
+    return finalResult;
   }
 
   async sendViaSMTP(tenant, emailData) {
     try {
+      console.log(`🔧 Configuring SMTP for: ${tenant.company_name}`);
+      
       // Decrypt SMTP config
       const smtpConfig = encryptionService.decryptSMTPConfig(tenant.smtp_config);
       
@@ -72,7 +147,9 @@ class EmailService {
       });
 
       // Verify connection first
+      console.log(`🔐 Verifying SMTP connection to: ${smtpConfig.host}`);
       await transporter.verify();
+      console.log(`✅ SMTP connection verified`);
 
       const fromEmail = smtpConfig.from_email || `reports@${this.extractDomain(smtpConfig.host)}`;
 
@@ -89,6 +166,7 @@ class EmailService {
         }
       };
 
+      console.log(`📤 Sending SMTP email to: ${emailData.to}`);
       const info = await transporter.sendMail(mailOptions);
       
       console.log(`✅ SMTP email sent: ${info.messageId}`);
@@ -100,23 +178,43 @@ class EmailService {
       };
 
     } catch (error) {
-      console.error('SMTP send error:', error);
+      console.error('❌ SMTP send error:', error);
       throw new Error(`SMTP delivery failed: ${error.message}`);
     }
   }
 
   async sendViaResend(tenant, emailData) {
     try {
-      const fromEmail = tenant.smtp_config?.from_email 
-        ? `"${tenant.company_name}" <${this.extractFromEmail(tenant.smtp_config.from_email)}>`
-        : `"${tenant.company_name}" <reports@reportflow.dev>`;
+      console.log(`🔧 Configuring Resend for: ${tenant.company_name}`);
+      
+      let fromEmail;
+      
+      if (tenant.smtp_config) {
+        try {
+          const smtpConfig = encryptionService.decryptSMTPConfig(tenant.smtp_config);
+          fromEmail = `"${tenant.company_name}" <${smtpConfig.from_email || 'reports@reportflow.dev'}>`;
+        } catch (e) {
+          fromEmail = `"${tenant.company_name}" <reports@reportflow.dev>`;
+        }
+      } else {
+        fromEmail = `"${tenant.company_name}" <reports@reportflow.dev>`;
+      }
 
+      // Convert attachments for Resend format
+      const resendAttachments = emailData.attachments && emailData.attachments.length > 0 
+        ? emailData.attachments.map(att => ({
+            filename: att.filename,
+            content: att.content.toString('base64') // Resend requires base64
+          }))
+        : [];
+
+      console.log(`📤 Sending Resend email to: ${emailData.to}`);
       const { data, error } = await this.resend.emails.send({
         from: fromEmail,
         to: emailData.to,
         subject: emailData.subject,
         html: emailData.html,
-        attachments: emailData.attachments
+        attachments: resendAttachments
       });
 
       if (error) {
@@ -132,13 +230,15 @@ class EmailService {
       };
 
     } catch (error) {
-      console.error('Resend send error:', error);
+      console.error('❌ Resend send error:', error);
       throw new Error(`Resend delivery failed: ${error.message}`);
     }
   }
 
   async testSMTP(config) {
     try {
+      console.log(`🧪 Testing SMTP configuration for: ${config.host}`);
+      
       const transporter = nodemailer.createTransport({
         host: config.host,
         port: config.port || 587,
@@ -152,6 +252,7 @@ class EmailService {
       });
 
       await transporter.verify();
+      console.log(`✅ SMTP connection verified`);
       
       // Try to send a test email
       const testEmail = {
@@ -162,6 +263,7 @@ class EmailService {
       };
 
       const info = await transporter.sendMail(testEmail);
+      console.log(`✅ SMTP test email sent: ${info.messageId}`);
       
       return { 
         success: true,
@@ -170,10 +272,38 @@ class EmailService {
       };
       
     } catch (error) {
+      console.error('❌ SMTP test failed:', error);
       return { 
         success: false, 
         error: error.message 
       };
+    }
+  }
+
+  async logEmailDelivery(tenantId, reportId, attemptData) {
+    try {
+      console.log(`📝 Logging email delivery for tenant: ${tenantId}, report: ${reportId}`);
+      
+      const { error } = await supabase
+        .from('email_delivery_logs')
+        .insert({
+          tenant_id: tenantId,
+          report_id: reportId,
+          attempt_number: attemptData.attempt_number || 1,
+          delivery_method: attemptData.delivery_method,
+          provider_used: attemptData.provider_used,
+          success: attemptData.success,
+          error_message: attemptData.error_message,
+          message_id: attemptData.message_id
+        });
+
+      if (error) {
+        console.error('❌ Failed to log email delivery:', error);
+      } else {
+        console.log(`✅ Email delivery logged successfully`);
+      }
+    } catch (error) {
+      console.error('❌ Email delivery logging error:', error);
     }
   }
 
@@ -189,9 +319,21 @@ class EmailService {
   }
 
   async updateTenantError(tenantId, errorMessage) {
-    // This would update the tenant's last_email_error in database
-    // Implementation depends on your database service
-    console.log(`Updating tenant ${tenantId} with error: ${errorMessage}`);
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .update({ 
+          last_email_error: errorMessage,
+          smtp_verified: false // Mark as unverified on error
+        })
+        .eq('id', tenantId);
+
+      if (error) {
+        console.error('❌ Failed to update tenant error:', error);
+      }
+    } catch (error) {
+      console.error('❌ Tenant error update failed:', error);
+    }
   }
 }
 
