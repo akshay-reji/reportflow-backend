@@ -8,14 +8,20 @@
 [functions]
   directory = "netlify/functions"
 
-# Redirect API routes to our function
+# API routes - redirect to our server function
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/server/api/:splat"
+  to = "/.netlify/functions/server/:splat"
   status = 200
 
-# Catch-all for SPA
+# Health check specific route
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/health"
+  to = "/.netlify/functions/server/api/health"
+  status = 200
+
+# Scheduler routes
+[[redirects]]
+  from = "/api/scheduler/*"
+  to = "/.netlify/functions/server/api/scheduler/:splat"
   status = 200
