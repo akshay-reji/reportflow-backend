@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reporterService = require('../services/reporter-service');
+const supabase = require('../lib/supabase');
 const crypto = require('crypto');
 
 // Verify webhook secret middleware
@@ -50,26 +51,118 @@ router.post('/generate', verifyWebhook, async (req, res) => {
     }
 });
 
-// Test endpoint (unprotected)
-router.post('/test', async (req, res) => {
-    try {
-        // Use a test report config ID for demonstration
-        const testConfigId = '3bce31b7-b045-4da0-981c-db138e866cfe'; // Replace with actual test ID
-        const testTenantId = '3bce31b7-b045-4da0-981c-db138e866cfe'; // Replace with actual test ID
-        
-        const result = await reporterService.generateAndSendReport(testConfigId, testTenantId);
-        
-        res.json({
-            ...result,
-            note: 'This was a test run with mock data'
-        });
+// Setup test data endpoint
+router.post('/setup-test-data', async (req, res) => {
+  try {
+    // Get the first tenant
+    const { data: tenants, error: tenantError } = await supabase
+      .from('tenants')
+      .select('id')
+      .limit(1);
 
-    } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
+    if (tenantError || !tenants || tenants.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No tenants found in database' 
+      });
     }
+
+    const tenantId = tenants[0].id;
+
+    // Create a test client
+    const { data: client, error: clientError } = await supabase
+      .from('clients')
+      .insert({
+        tenant_id: tenantId,
+        client_name: 'Test Client',
+        contact_email: 'test@example.com'
+      })
+      .select()
+      .single();
+
+    if (clientError) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Failed to create test client: ${clientError.message}` 
+      });
+    }
+
+    // Create a test report configuration
+    const { data: reportConfig, error: configError } = await supabase
+      .from('report_configs')
+      .insert({
+        tenant_id: tenantId,
+        client_id: client.id,
+        name: 'Test Report Configuration',
+        schedule: 'weekly',
+        sources: { google_analytics: { property_id: 'test' } },
+        template_id: 'default',
+        next_scheduled_run: new Date().toISOString(),
+        is_active: true,
+        schedule_frequency: 'weekly',
+        schedule_time: '09:00:00',
+        timezone: 'UTC'
+      })
+      .select()
+      .single();
+
+    if (configError) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Failed to create test report config: ${configError.message}` 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test data created successfully',
+      test_data: {
+        tenant_id: tenantId,
+        client_id: client.id,
+        report_config_id: reportConfig.id
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Test endpoint (unprotected) - Updated to use valid data
+router.post('/test', async (req, res) => {
+  try {
+    // Get the first valid report config from the database
+    const { data: reportConfigs, error } = await supabase
+      .from('report_configs')
+      .select('id, tenant_id')
+      .limit(1);
+
+    if (error || !reportConfigs || reportConfigs.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No report configurations found. Run /api/reporter/setup-test-data first.' 
+      });
+    }
+
+    const validConfig = reportConfigs[0];
+    console.log(`🧪 Using valid report config: ${validConfig.id}, tenant: ${validConfig.tenant_id}`);
+    
+    const result = await reporterService.generateAndSendReport(validConfig.id, validConfig.tenant_id);
+    
+    res.json({
+      ...result,
+      note: 'This was a test run with valid database records'
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 module.exports = router;
