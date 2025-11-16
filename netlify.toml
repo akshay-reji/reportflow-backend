@@ -8,7 +8,14 @@
 [functions]
   directory = "netlify/functions"
 
+# Redirect all API requests to our server function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/server/:splat"
+  status = 200
+
+# Catch-all for SPA routing (important!)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
