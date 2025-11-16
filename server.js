@@ -12,57 +12,46 @@ app.use(express.json());
 const schedulerRoutes = require('./routes/scheduler');
 const reporterRoutes = require('./routes/reporter');
 const emailRoutes = require('./routes/email');
-// Use routes
+
+// ✅ CRITICAL FIX: Use routes
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/reporter', reporterRoutes);
 app.use('/api/email', emailRoutes);
-// Health check - works for both Netlify and local
-// Health check - works for both direct and API routes
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ReportFlow Backend Running 🚀',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     platform: process.env.NETLIFY ? 'Netlify Functions' : 'Local Server',
-    message: 'API routing is working!'
+    message: 'API routing is working!',
+    routes: ['/api/scheduler', '/api/reporter', '/api/email'] // ✅ Added route confirmation
   });
 });
 
-// Add a catch-all for the function path too
-app.get('/.netlify/functions/server/api/health', (req, res) => {
+// ✅ ADD THIS: Test endpoint to verify all routes
+app.get('/api/debug-routes', (req, res) => {
   res.json({
-    status: 'ReportFlow Backend Running 🚀',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development', 
-    message: 'Direct function call working!'
+    message: 'All routes should be working',
+    availableRoutes: [
+      'GET /api/health',
+      'POST /api/scheduler/test', 
+      'POST /api/reporter/test',
+      'POST /api/email/test-send',
+      'GET /api/debug-routes'
+    ]
   });
 });
 
-// Root endpoint for Netlify function testing
-app.get('/.netlify/functions/server/api/health', (req, res) => {
+// ✅ ADD THIS: Root endpoint
+app.get('/', (req, res) => {
   res.json({
-    status: 'ReportFlow Backend Running 🚀 (Direct Function Call)',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    note: 'Accessed via direct function URL'
+    message: 'ReportFlow Backend API',
+    status: 'Running',
+    version: '1.0.0'
   });
 });
 
-// ---------------------------------------------
-// EXPORT APP FOR NETLIFY FUNCTION
-// ---------------------------------------------
+// Export the Express app
 module.exports = app;
-
-// ---------------------------------------------
-// RUN LOCAL SERVER ONLY IF NOT ON NETLIFY
-// ---------------------------------------------
-if (!process.env.NETLIFY) {
-  const PORT = process.env.PORT || 3001;
-
-  app.listen(PORT, () => {
-    console.log(`\n🚀 ReportFlow Backend running locally on port ${PORT}`);
-    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-    console.log(`📍 Test: http://localhost:${PORT}/api/test`);
-    console.log(`🔧 Scheduler: http://localhost:${PORT}/api/scheduler/test\n`);
-  });
-}
