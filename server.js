@@ -3,7 +3,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -17,7 +16,7 @@ app.use('/api/scheduler', schedulerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'ReportFlow Backend Running 🚀',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
@@ -26,16 +25,27 @@ app.get('/api/health', (req, res) => {
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Backend is working perfectly! 🎉',
     time: new Date().toISOString()
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 ReportFlow Backend running on port ${PORT}`);
-  console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-  console.log(`📍 Test: http://localhost:${PORT}/api/test`);
-  console.log(`🔧 Scheduler: http://localhost:${PORT}/api/scheduler/test`);
-});
+// ---------------------------------------------
+// EXPORT APP FOR NETLIFY FUNCTION
+// ---------------------------------------------
+module.exports = app;
+
+// ---------------------------------------------
+// RUN LOCAL SERVER ONLY IF NOT ON NETLIFY
+// ---------------------------------------------
+if (!process.env.NETLIFY) {
+  const PORT = process.env.PORT || 3001;
+
+  app.listen(PORT, () => {
+    console.log(`\n🚀 ReportFlow Backend running locally on port ${PORT}`);
+    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
+    console.log(`📍 Test: http://localhost:${PORT}/api/test`);
+    console.log(`🔧 Scheduler: http://localhost:${PORT}/api/scheduler/test\n`);
+  });
+}
