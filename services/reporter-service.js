@@ -79,7 +79,7 @@ class ReporterService {
         
         const periodEnd = new Date();
 
-        // Generate mock data (replace with real API calls to Google Analytics, etc.)
+        // Generate mock data
         const templateData = pdfService.generateMockAnalyticsData(
             reportConfig.clients.client_name,
             periodStart.toLocaleDateString(),
@@ -215,23 +215,43 @@ class ReporterService {
         if (status === 'delivered') {
             const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
             
-            // Increment email count for tenant
-            const { error: emailCountError } = await supabase
+            // ✅ FIXED: Get current count and increment manually
+            const { data: tenantData, error: tenantError } = await supabase
                 .from('tenants')
-                .update({ 
-                    email_sent_count: supabase.raw('email_sent_count + 1')
-                })
-                .eq('id', tenantId);
+                .select('email_sent_count')
+                .eq('id', tenantId)
+                .single();
 
-            if (emailCountError) console.error('Email count update error:', emailCountError);
+            if (!tenantError && tenantData) {
+                const { error: emailCountError } = await supabase
+                    .from('tenants')
+                    .update({ 
+                        email_sent_count: (tenantData.email_sent_count || 0) + 1
+                    })
+                    .eq('id', tenantId);
 
-            // Update tenant_usage table
+                if (emailCountError) console.error('Email count update error:', emailCountError);
+            }
+
+            // ✅ FIXED: Update tenant_usage table without raw()
+            const { data: usageData, error: usageSelectError } = await supabase
+                .from('tenant_usage')
+                .select('reports_sent')
+                .eq('tenant_id', tenantId)
+                .eq('month', currentMonth)
+                .single();
+
+            let currentReportsSent = 0;
+            if (!usageSelectError && usageData) {
+                currentReportsSent = usageData.reports_sent || 0;
+            }
+
             const { error: usageError } = await supabase
                 .from('tenant_usage')
                 .upsert({
                     tenant_id: tenantId,
                     month: currentMonth,
-                    reports_sent: supabase.raw('COALESCE(reports_sent, 0) + 1'),
+                    reports_sent: currentReportsSent + 1,
                     last_reset_date: currentMonth
                 }, {
                     onConflict: 'tenant_id,month'
