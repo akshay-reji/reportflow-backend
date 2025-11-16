@@ -214,17 +214,17 @@ class EmailService {
       console.log(`🔧 Configuring Resend for: ${tenant.company_name}`);
       
       let fromEmail;
-      
-      if (tenant.smtp_config) {
+
+        if (tenant.smtp_config) {
         try {
-          const smtpConfig = encryptionService.decryptSMTPConfig(tenant.smtp_config);
-          fromEmail = `"${tenant.company_name}" <${smtpConfig.from_email || 'reports@reportflow.dev'}>`;
+            const smtpConfig = encryptionService.decryptSMTPConfig(tenant.smtp_config);
+            fromEmail = `"${tenant.company_name}" <${smtpConfig.from_email || 'reports@reports.reportflow.me'}>`;
         } catch (e) {
-          fromEmail = `"${tenant.company_name}" <reports@reportflow.dev>`;
+            fromEmail = `"${tenant.company_name}" <reports@reports.reportflow.me>`;
         }
-      } else {
-        fromEmail = `"${tenant.company_name}" <reports@reportflow.dev>`;
-      }
+        } else {
+        fromEmail = `"${tenant.company_name}" <reports@reports.reportflow.me>`;
+        }
 
       // Convert attachments for Resend format
       const resendAttachments = emailData.attachments && emailData.attachments.length > 0 
