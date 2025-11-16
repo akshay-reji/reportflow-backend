@@ -61,6 +61,7 @@ router.get('/config', verifyWebhook, async (req, res) => {
 });
 
 // Update email configuration
+// Update email configuration
 router.post('/config', verifyWebhook, async (req, res) => {
   try {
     const { tenant_id, email_provider, smtp_config } = req.body;
@@ -70,7 +71,8 @@ router.post('/config', verifyWebhook, async (req, res) => {
     }
 
     let updateData = {
-      email_provider: email_provider || 'resend'
+      email_provider: email_provider || 'resend',
+      email_config_updated_at: new Date().toISOString() // NEW: Track when config was updated
     };
 
     // If SMTP config provided, encrypt and store it
@@ -94,7 +96,8 @@ router.post('/config', verifyWebhook, async (req, res) => {
       message: 'Email configuration updated successfully',
       config: {
         email_provider: data.email_provider,
-        smtp_verified: data.smtp_verified
+        smtp_verified: data.smtp_verified,
+        email_config_updated_at: data.email_config_updated_at
       }
     });
 
@@ -106,6 +109,7 @@ router.post('/config', verifyWebhook, async (req, res) => {
   }
 });
 
+// Test SMTP configuration
 // Test SMTP configuration
 router.post('/test-smtp', verifyWebhook, async (req, res) => {
   try {
@@ -127,7 +131,8 @@ router.post('/test-smtp', verifyWebhook, async (req, res) => {
         .update({
           smtp_config: encryptedConfig,
           smtp_verified: true,
-          last_email_error: null
+          last_email_error: null,
+          email_config_updated_at: new Date().toISOString() // ADD THIS LINE
         })
         .eq('id', tenant_id);
     }
