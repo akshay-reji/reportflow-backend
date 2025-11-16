@@ -5,14 +5,16 @@ const supabase = require('../lib/supabase');
 
 class EmailService {
   constructor() {
-    // ✅ FIX: Handle missing Resend API key gracefully
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'your_resend_api_key_here') {
+    // ✅ FIX: Better Resend API key validation
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_')) {
       this.resend = new Resend(process.env.RESEND_API_KEY);
-      console.log('✅ Resend client initialized');
+      console.log('✅ Resend client initialized with valid API key');
     } else {
       console.warn('⚠️ RESEND_API_KEY not found or invalid. Resend email functionality disabled.');
+      console.warn('🔧 Current RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'Set (but invalid format)' : 'Not set');
       this.resend = null;
     }
+  }
   }
 
   async sendReport(tenant, reportData, pdfBuffer, reportId) {
