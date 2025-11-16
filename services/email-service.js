@@ -1,15 +1,26 @@
 const nodemailer = require('nodemailer');
 const { Resend } = require('resend');
 const encryptionService = require('./encryption-service');
-const supabase = require('../lib/supabase'); // ✅ FIXED: Added missing import
+const supabase = require('../lib/supabase');
 
 class EmailService {
   constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+    // ✅ FIX: Handle missing Resend API key gracefully
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'your_resend_api_key_here') {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      console.log('✅ Resend client initialized');
+    } else {
+      console.warn('⚠️ RESEND_API_KEY not found or invalid. Resend email functionality disabled.');
+      this.resend = null;
+    }
   }
 
   async sendReport(tenant, reportData, pdfBuffer, reportId) {
-    // ✅ FIXED: Properly construct emailData from parameters
+    // Check if Resend is available for non-SMTP delivery
+    if (!this.resend && tenant.email_provider !== 'smtp') {
+      throw new Error('Resend API key not configured. Please set RESEND_API_KEY environment variable or use SMTP.');
+    }
+
     const emailData = {
       to: reportData.client_email,
       subject: reportData.subject,
@@ -59,39 +70,47 @@ class EmailService {
 
         attemptNumber++;
         
-        // Fallback to Resend
-        try {
-          console.log(`📧 Attempt ${attemptNumber}: Resend fallback for tenant: ${tenant.id}`);
-          finalResult = await this.sendViaResend(tenant, emailData);
-          finalResult.delivery_method = 'resend_fallback';
-          finalResult.provider = 'resend';
-          finalResult.fallback_reason = smtpError.message;
-          finalResult.attempt_number = attemptNumber;
-          
-          // Log successful fallback
-          await this.logEmailDelivery(tenant.id, reportId, {
-            attempt_number: attemptNumber,
-            delivery_method: 'resend',
-            provider_used: 'resend',
-            success: true,
-            message_id: finalResult.messageId
-          });
+        // Fallback to Resend only if available
+        if (this.resend) {
+          try {
+            console.log(`📧 Attempt ${attemptNumber}: Resend fallback for tenant: ${tenant.id}`);
+            finalResult = await this.sendViaResend(tenant, emailData);
+            finalResult.delivery_method = 'resend_fallback';
+            finalResult.provider = 'resend';
+            finalResult.fallback_reason = smtpError.message;
+            finalResult.attempt_number = attemptNumber;
+            
+            // Log successful fallback
+            await this.logEmailDelivery(tenant.id, reportId, {
+              attempt_number: attemptNumber,
+              delivery_method: 'resend',
+              provider_used: 'resend',
+              success: true,
+              message_id: finalResult.messageId
+            });
 
-        } catch (resendError) {
-          // Log failed fallback
-          await this.logEmailDelivery(tenant.id, reportId, {
-            attempt_number: attemptNumber,
-            delivery_method: 'resend',
-            provider_used: 'resend',
-            success: false,
-            error_message: resendError.message
-          });
-          
-          throw resendError;
+          } catch (resendError) {
+            // Log failed fallback
+            await this.logEmailDelivery(tenant.id, reportId, {
+              attempt_number: attemptNumber,
+              delivery_method: 'resend',
+              provider_used: 'resend',
+              success: false,
+              error_message: resendError.message
+            });
+            
+            throw resendError;
+          }
+        } else {
+          throw new Error(`SMTP failed and Resend fallback not available: ${smtpError.message}`);
         }
       }
     } else {
-      // Primary Resend delivery
+      // Primary Resend delivery - only if Resend is available
+      if (!this.resend) {
+        throw new Error('Resend email provider selected but RESEND_API_KEY not configured');
+      }
+
       try {
         console.log(`📧 Primary Resend delivery for tenant: ${tenant.id}`);
         finalResult = await this.sendViaResend(tenant, emailData);
@@ -184,6 +203,11 @@ class EmailService {
   }
 
   async sendViaResend(tenant, emailData) {
+    // ✅ FIX: Check if Resend is available
+    if (!this.resend) {
+      throw new Error('Resend client not initialized. Check RESEND_API_KEY environment variable.');
+    }
+
     try {
       console.log(`🔧 Configuring Resend for: ${tenant.company_name}`);
       
