@@ -14,12 +14,14 @@ const schedulerRoutes = require('./routes/scheduler');
 // Use routes
 app.use('/api/scheduler', schedulerRoutes);
 
-// Health check
+// Health check - works for both Netlify and local
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ReportFlow Backend Running 🚀',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    platform: process.env.NETLIFY ? 'Netlify Functions' : 'Local Server',
+    baseUrl: req.baseUrl || 'None'
   });
 });
 
@@ -27,7 +29,19 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Backend is working perfectly! 🎉',
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
+    path: req.path,
+    baseUrl: req.baseUrl || 'None'
+  });
+});
+
+// Root endpoint for Netlify function testing
+app.get('/.netlify/functions/server/api/health', (req, res) => {
+  res.json({
+    status: 'ReportFlow Backend Running 🚀 (Direct Function Call)',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    note: 'Accessed via direct function URL'
   });
 });
 
