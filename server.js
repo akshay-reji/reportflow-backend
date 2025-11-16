@@ -10,10 +10,12 @@ app.use(express.json());
 
 // Import routes
 const schedulerRoutes = require('./routes/scheduler');
-
+const reporterRoutes = require('./routes/reporter');
+const emailRoutes = require('./routes/email');
 // Use routes
 app.use('/api/scheduler', schedulerRoutes);
-
+app.use('/api/reporter', reporterRoutes);
+app.use('/api/email', emailRoutes);
 // Health check - works for both Netlify and local
 // Health check - works for both direct and API routes
 app.get('/api/health', (req, res) => {

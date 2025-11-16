@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{reportTitle}} - {{agencyName}}</title>
+    <style>
+        /* Professional CSS Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            background: #ffffff;
+        }
+        
+        /* Header with logos */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #2c5aa0;
+            margin-bottom: 30px;
+        }
+        
+        .agency-logo, .client-logo {
+            height: 50px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+        
+        /* Report metadata */
+        .report-meta {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #2c5aa0;
+        }
+        
+        .report-title {
+            color: #2c5aa0;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .report-period {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Metric cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c5aa0;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Charts and tables */
+        .section {
+            margin: 30px 0;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .data-table th {
+            background: #2c5aa0;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5e9;
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .generated-at {
+            margin-top: 10px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header with logos -->
+    <div class="header">
+        {{#if agencyLogo}}
+        <img src="{{agencyLogo}}" alt="{{agencyName}}" class="agency-logo">
+        {{else}}
+        <div class="agency-name">{{agencyName}}</div>
+        {{/if}}
+        
+        {{#if clientLogo}}
+        <img src="{{clientLogo}}" alt="{{clientName}}" class="client-logo">
+        {{else}}
+        <div class="client-name">{{clientName}}</div>
+        {{/if}}
+    </div>
+    
+    <!-- Report metadata -->
+    <div class="report-meta">
+        <h1 class="report-title">{{reportTitle}}</h1>
+        <div class="report-period">Reporting Period: {{periodStart}} to {{periodEnd}}</div>
+    </div>
+    
+    <!-- Main content area -->
+    <div class="content">
+        {{{content}}}
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div>Confidential Report - Prepared exclusively for {{clientName}}</div>
+        <div class="generated-at">Generated on {{generatedAt}} by ReportFlow</div>
+    </div>
+</body>
+</html>

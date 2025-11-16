@@ -1,0 +1,120 @@
+{{!< base}}
+
+{{#*inline "content"}}
+    <!-- Executive Summary -->
+    <div class="section">
+        <h2 class="section-title">Executive Summary</h2>
+        <div style="background: #f0f7ff; padding: 20px; border-radius: 8px; border-left: 4px solid #2c5aa0;">
+            <p>This report covers website performance for the period <strong>{{periodStart}}</strong> to <strong>{{periodEnd}}</strong>. Key metrics show overall traffic trends, user engagement, and conversion performance.</p>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="section">
+        <h2 class="section-title">Key Performance Indicators</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Visitors</div>
+                <div class="metric-value">{{formatNumber metrics.totalVisitors}}</div>
+                <div class="metric-change {{#if metrics.visitorChange.positive}}positive{{else}}negative{{/if}}">
+                    {{metrics.visitorChange.value}}% vs previous period
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Page Views</div>
+                <div class="metric-value">{{formatNumber metrics.pageViews}}</div>
+                <div class="metric-change {{#if metrics.pageViewChange.positive}}positive{{else}}negative{{/if}}">
+                    {{metrics.pageViewChange.value}}% vs previous period
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg. Session Duration</div>
+                <div class="metric-value">{{metrics.avgSessionDuration}}</div>
+                <div class="metric-change {{#if metrics.durationChange.positive}}positive{{else}}negative{{/if}}">
+                    {{metrics.durationChange.value}}% vs previous period
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Bounce Rate</div>
+                <div class="metric-value">{{metrics.bounceRate}}%</div>
+                <div class="metric-change {{#if metrics.bounceChange.positive}}negative{{else}}positive{{/if}}">
+                    {{metrics.bounceChange.value}}% vs previous period
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Traffic Sources -->
+    <div class="section">
+        <h2 class="section-title">Traffic Sources</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Sessions</th>
+                    <th>% of Total</th>
+                    <th>Bounce Rate</th>
+                    <th>Pages/Session</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each trafficSources}}
+                <tr>
+                    <td>{{this.source}}</td>
+                    <td>{{formatNumber this.sessions}}</td>
+                    <td>{{this.percentage}}%</td>
+                    <td>{{this.bounceRate}}%</td>
+                    <td>{{this.pagesPerSession}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Top Pages -->
+    <div class="section">
+        <h2 class="section-title">Top Performing Pages</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Page</th>
+                    <th>Page Views</th>
+                    <th>Unique Views</th>
+                    <th>Avg. Time</th>
+                    <th>Exit Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each topPages}}
+                <tr>
+                    <td>{{this.page}}</td>
+                    <td>{{formatNumber this.pageViews}}</td>
+                    <td>{{formatNumber this.uniqueViews}}</td>
+                    <td>{{this.avgTime}}</td>
+                    <td>{{this.exitRate}}%</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Insights & Recommendations -->
+    <div class="section">
+        <h2 class="section-title">Insights & Recommendations</h2>
+        <div style="background: #fff9e6; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <h3 style="color: #856404; margin-bottom: 15px;">Key Insights</h3>
+            <ul style="margin-left: 20px;">
+                {{#each insights}}
+                <li style="margin-bottom: 8px;">{{this}}</li>
+                {{/each}}
+            </ul>
+            
+            <h3 style="color: #856404; margin: 20px 0 15px 0;">Recommendations</h3>
+            <ul style="margin-left: 20px;">
+                {{#each recommendations}}
+                <li style="margin-bottom: 8px;">{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+    </div>
+{{/inline}}
