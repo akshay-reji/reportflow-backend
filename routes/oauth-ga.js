@@ -296,32 +296,39 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// 🏆 COMPREHENSIVE TEST SUITE WITH UI
+// 🏆 COMPREHENSIVE TEST SUITE WITH UI (FIXED VERSION)
 router.get('/test-complete', async (req, res) => {
   try {
     // Use existing test data or allow custom input
     const testTenantId = req.query.tenant_id || '3bce31b7-b045-4da0-981c-db138e866cfe';
     const testConfigId = req.query.report_config_id || 'e51bc18e-a9f4-4501-a33f-6b478b689289';
     
-    // Check current connection status
+    // Check current connection status - FIXED LOGIC
     let connectionStatus = { connected: false };
     try {
-      const statusResponse = await supabase
+      const { data: reportConfig, error } = await supabase
         .from('report_configs')
         .select('sources')
         .eq('id', testConfigId)
         .eq('tenant_id', testTenantId)
         .single();
 
-      if (statusResponse.data?.sources?.google_analytics) {
-        connectionStatus = {
-          connected: true,
-          connected_at: statusResponse.data.sources.google_analytics.connected_at,
-          property: statusResponse.data.sources.google_analytics.property_info
-        };
+      if (!error && reportConfig && reportConfig.sources?.google_analytics) {
+        const gaConfig = reportConfig.sources.google_analytics;
+        // ✅ FIXED: Check if tokens exist and are valid
+        const isConnected = !!(gaConfig?.oauth_tokens?.access_token);
+        
+        if (isConnected) {
+          connectionStatus = {
+            connected: true,
+            connected_at: gaConfig.connected_at,
+            property: gaConfig.property_info
+          };
+        }
       }
     } catch (error) {
-      // Status check failed - not connected
+      console.log('🔍 No GA connection found (expected)');
+      connectionStatus = { connected: false };
     }
 
     res.send(`
@@ -347,16 +354,16 @@ router.get('/test-complete', async (req, res) => {
             <h1>🔧 Google Analytics OAuth Test Suite</h1>
             <p>Complete testing workflow for GA OAuth integration</p>
             
-            <!-- Connection Status -->
+            <!-- Connection Status - FIXED CONDITIONAL DISPLAY -->
             <div class="card ${connectionStatus.connected ? 'status-connected' : 'status-disconnected'}">
               <h2>📊 Connection Status</h2>
               ${connectionStatus.connected ? `
                 <div style="color: #27ae60; font-weight: bold;">✅ Connected to Google Analytics</div>
-                <p><strong>Connected:</strong> ${new Date(connectionStatus.connected_at).toLocaleString()}</p>
+                <p><strong>Connected:</strong> ${connectionStatus.connected_at ? new Date(connectionStatus.connected_at).toLocaleString() : 'Recently'}</p>
                 ${connectionStatus.property ? `<p><strong>Account:</strong> ${connectionStatus.property.accountName || 'Basic Access'}</p>` : ''}
               ` : `
                 <div style="color: #e74c3c; font-weight: bold;">❌ Not Connected</div>
-                <p>Google Analytics is not connected yet.</p>
+                <p>Google Analytics is not connected yet. Click "Connect Google Analytics" below to get started.</p>
               `}
             </div>
 
@@ -406,7 +413,16 @@ router.get('/test-complete', async (req, res) => {
                     Test Advanced Features
                   </a>
                 </div>
-              ` : ''}
+              ` : `
+                <div class="step">
+                  <h3>Step 3: Connect First</h3>
+                  <p>Connect Google Analytics above to unlock data fetching and advanced features.</p>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                    <p><strong>Current Status:</strong> Not Connected</p>
+                    <p><strong>Next Step:</strong> Click "Connect Google Analytics" above</p>
+                  </div>
+                </div>
+              `}
             </div>
 
             <!-- API Documentation -->
@@ -434,6 +450,7 @@ router.get('/test-complete', async (req, res) => {
                 <a href="/api/health" class="btn" style="background: #666;">System Health</a>
                 <a href="/api/debug-routes" class="btn" style="background: #666;">Debug Routes</a>
                 <a href="/api/reporter/test" class="btn" style="background: #666;">Test Reporter</a>
+                <a href="/api/oauth/ga/status?tenant_id=${testTenantId}&report_config_id=${testConfigId}" class="btn" style="background: #666;">API Status</a>
               </div>
             </div>
           </div>
