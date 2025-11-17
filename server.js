@@ -12,11 +12,14 @@ app.use(express.json());
 const schedulerRoutes = require('./routes/scheduler');
 const reporterRoutes = require('./routes/reporter');
 const emailRoutes = require('./routes/email');
+const oauthGaRoutes = require('./routes/oauth-ga');
 
 // ✅ CRITICAL FIX: Use routes
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/reporter', reporterRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/oauth/ga', oauthGaRoutes);
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
