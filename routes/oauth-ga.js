@@ -1,4 +1,4 @@
-// routes/oauth-ga.js - COMPLETE IMPLEMENTATION
+// routes/oauth-ga.js - COMPLETE IMPLEMENTATION (FIXED)
 const express = require('express');
 const router = express.Router();
 const gaOAuthService = require('../services/oauth-ga-service');
@@ -240,6 +240,59 @@ router.get('/callback', async (req, res) => {
         </body>
       </html>
     `);
+  }
+});
+
+// 🔍 GET CONNECTION STATUS - ADDED MISSING ROUTE
+router.get('/status', async (req, res) => {
+  try {
+    const { tenant_id, report_config_id } = req.query;
+    
+    if (!tenant_id || !report_config_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id or report_config_id' 
+      });
+    }
+
+    console.log(`🔍 Checking GA connection status for tenant: ${tenant_id}`);
+
+    const { data: reportConfig, error } = await supabase
+      .from('report_configs')
+      .select('sources')
+      .eq('id', report_config_id)
+      .eq('tenant_id', tenant_id)
+      .single();
+
+    if (error) {
+      return res.json({
+        success: true,
+        connected: false,
+        message: 'Google Analytics is not connected'
+      });
+    }
+
+    const gaConfig = reportConfig.sources?.google_analytics;
+    const isConnected = !!(gaConfig?.oauth_tokens?.access_token);
+
+    res.json({
+      success: true,
+      connected: isConnected,
+      status: {
+        connected: isConnected,
+        connected_at: gaConfig?.connected_at,
+        property: gaConfig?.property_info,
+        tokens_valid: gaConfig?.oauth_tokens?.expiry_date > Date.now()
+      },
+      message: isConnected ? 'Google Analytics is connected' : 'Google Analytics is not connected'
+    });
+
+  } catch (error) {
+    console.error('❌ GA status check failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
@@ -682,11 +735,240 @@ router.get('/test-advanced', async (req, res) => {
   }
 });
 
-// ... KEEP ALL EXISTING ENDPOINTS (test-fetch, status, disconnect, predictive-insights, detect-anomalies, multi-property)
+// 📊 TEST GA DATA FETCHING (Protected) - ADDED MISSING ROUTE
+router.post('/test-fetch', verifyWebhook, async (req, res) => {
+  try {
+    const { tenant_id, report_config_id, date_range } = req.body;
+    
+    if (!tenant_id || !report_config_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id or report_config_id' 
+      });
+    }
 
-// UPDATE EXISTING TEST ENDPOINT TO REDIRECT
+    console.log(`🧪 Testing GA data fetch for tenant: ${tenant_id}`);
+
+    const gaData = await gaOAuthService.fetchGA4Data(
+      tenant_id, 
+      report_config_id, 
+      date_range || { startDate: '7daysAgo', endDate: 'today' }
+    );
+
+    res.json({
+      success: true,
+      message: 'GA data fetched successfully!',
+      data: gaData,
+      sample_metrics: {
+        sessions: gaData.summary?.totalSessions || 0,
+        users: gaData.summary?.totalUsers || 0,
+        engagement_rate: gaData.summary?.engagementRate || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ GA data test fetch failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      note: 'Make sure Google Analytics is connected and has data'
+    });
+  }
+});
+
+// 🗑️ DISCONNECT GOOGLE ANALYTICS - ADDED MISSING ROUTE
+router.post('/disconnect', verifyWebhook, async (req, res) => {
+  try {
+    const { tenant_id, report_config_id } = req.body;
+    
+    if (!tenant_id || !report_config_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id or report_config_id' 
+      });
+    }
+
+    console.log(`🗑️ Disconnecting GA for tenant: ${tenant_id}`);
+
+    const { error } = await supabase
+      .from('report_configs')
+      .update({
+        sources: supabase.raw(`sources - 'google_analytics'`)
+      })
+      .eq('id', report_config_id)
+      .eq('tenant_id', tenant_id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Google Analytics disconnected successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ GA disconnect failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// 🔮 GET PREDICTIVE INSIGHTS - ADDED MISSING ROUTE
+router.post('/predictive-insights', verifyWebhook, async (req, res) => {
+  try {
+    const { tenant_id, report_config_id, periods = 3 } = req.body;
+    
+    if (!tenant_id || !report_config_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id or report_config_id' 
+      });
+    }
+
+    console.log(`🔮 Generating predictive insights for tenant: ${tenant_id}`);
+
+    // First fetch recent data
+    const gaData = await gaOAuthService.fetchGA4Data(
+      tenant_id, 
+      report_config_id, 
+      { startDate: '90daysAgo', endDate: 'today' }
+    );
+
+    // Generate predictions
+    const predictions = await gaOAuthService.generateTrendPredictions(gaData, periods);
+
+    res.json({
+      success: true,
+      message: 'Predictive insights generated!',
+      predictions: predictions,
+      confidence: `Based on ${periods} periods of historical data`
+    });
+
+  } catch (error) {
+    console.error('❌ Predictive insights failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ⚠️ ANOMALY DETECTION - ADDED MISSING ROUTE
+router.post('/detect-anomalies', verifyWebhook, async (req, res) => {
+  try {
+    const { tenant_id, report_config_id, baseline_period = '30daysAgo' } = req.body;
+    
+    if (!tenant_id || !report_config_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id or report_config_id' 
+      });
+    }
+
+    console.log(`⚠️ Running anomaly detection for tenant: ${tenant_id}`);
+
+    // Fetch current data
+    const currentData = await gaOAuthService.fetchGA4Data(
+      tenant_id, 
+      report_config_id, 
+      { startDate: '7daysAgo', endDate: 'today' }
+    );
+
+    // Detect anomalies
+    const anomalies = await gaOAuthService.detectAnomalies(currentData, baseline_period);
+
+    res.json({
+      success: true,
+      message: anomalies.anomalies.length > 0 ? 'Anomalies detected!' : 'No significant anomalies found',
+      anomalies: anomalies,
+      alert_level: anomalies.severity > 0.7 ? 'high' : anomalies.severity > 0.4 ? 'medium' : 'low'
+    });
+
+  } catch (error) {
+    console.error('❌ Anomaly detection failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// 🌐 MULTI-PROPERTY DATA AGGREGATION - ADDED MISSING ROUTE
+router.post('/multi-property', verifyWebhook, async (req, res) => {
+  try {
+    const { tenant_id, report_config_id, property_ids, date_range } = req.body;
+    
+    if (!tenant_id || !report_config_id || !property_ids || !Array.isArray(property_ids)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing tenant_id, report_config_id, or property_ids array' 
+      });
+    }
+
+    console.log(`🌐 Fetching multi-property data for ${property_ids.length} properties`);
+
+    const multiPropertyData = await gaOAuthService.fetchMultiPropertyData(
+      tenant_id,
+      report_config_id,
+      property_ids,
+      date_range || { startDate: '30daysAgo', endDate: 'today' }
+    );
+
+    res.json({
+      success: true,
+      message: `Multi-property data aggregated from ${property_ids.length} properties`,
+      data: multiPropertyData,
+      property_count: property_ids.length,
+      aggregated_metrics: {
+        total_sessions: multiPropertyData.aggregate?.sessions || 0,
+        total_users: multiPropertyData.aggregate?.users || 0,
+        average_engagement: multiPropertyData.aggregate?.engagementRate || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Multi-property data fetch failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// TEST ENDPOINT (Unprotected for development)
+router.post('/test', async (req, res) => {
+  try {
+    // Use existing test data from your setup
+    const testTenantId = '3bce31b7-b045-4da0-981c-db138e866cfe';
+    const testConfigId = 'e51bc18e-a9f4-4501-a33f-6b478b689289';
+    
+    console.log('🧪 Testing GA OAuth flow with sample data');
+
+    // Generate auth URL for testing
+    const authUrl = gaOAuthService.generateAuthUrl(testTenantId, testConfigId);
+    
+    res.json({
+      success: true,
+      test_auth_url: authUrl,
+      note: 'Use this URL to test the OAuth flow. After authorization, check the callback handling.',
+      test_data: {
+        tenant_id: testTenantId,
+        report_config_id: testConfigId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ GA OAuth test failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Redirect GET /test to test-complete
 router.get('/test', async (req, res) => {
-  // Redirect to the comprehensive test suite
   res.redirect('/api/oauth/ga/test-complete');
 });
 
