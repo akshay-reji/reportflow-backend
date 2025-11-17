@@ -16,10 +16,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "googleapis": "^128.0.0",
     "handlebars": "^4.7.8",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.10",
-    "puppeteer-core": "^10.1.0",  
+    "puppeteer-core": "^10.1.0",
     "resend": "^2.1.0",
     "serverless-http": "^3.2.0"
   }

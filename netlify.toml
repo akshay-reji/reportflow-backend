@@ -26,20 +26,32 @@
   to = "/.netlify/functions/server/api/scheduler/:splat"
   status = 200
 
-# Reporter routes - ✅ ADD THIS
+# Reporter routes
 [[redirects]]
   from = "/api/reporter/*"
   to = "/.netlify/functions/server/api/reporter/:splat"
   status = 200
 
-# Email routes - ✅ ADD THIS
+# Email routes
 [[redirects]]
   from = "/api/email/*"
   to = "/.netlify/functions/server/api/email/:splat"
   status = 200
 
-# Debug routes - ✅ ADD THIS
+# OAuth GA routes - 🆕 ADD THIS CRITICAL MISSING ROUTE
+[[redirects]]
+  from = "/api/oauth/ga/*"
+  to = "/.netlify/functions/server/api/oauth/ga/:splat"
+  status = 200
+
+# Debug routes
 [[redirects]]
   from = "/api/debug-routes"
   to = "/.netlify/functions/server/api/debug-routes"
+  status = 200
+
+# Root route - 🆕 ADD THIS FOR BETTER UX
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/server"
   status = 200
