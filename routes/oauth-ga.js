@@ -97,9 +97,29 @@ router.get('/auth', async (req, res) => {
 });
 
 // 🔄 ENHANCED CALLBACK HANDLER (Backend-only with HTML)
+// Add this at the start of your callback handler
 router.get('/callback', async (req, res) => {
   try {
     const { code, state, error: oauthError } = req.query;
+    
+    console.log('🔄 OAuth Callback Received:');
+    console.log('📌 State from Google:', state);
+    console.log('📌 Code from Google:', code ? 'Present' : 'Missing');
+    console.log('📌 OAuth Error:', oauthError);
+
+    // Debug: Check what's in the database for this state
+    const { data: stateCheck, error: stateError } = await supabase
+      .from('oauth_states')
+      .select('*')
+      .eq('state', state)
+      .single();
+
+    console.log('🔍 Database State Check:');
+    console.log('📊 Found:', !!stateCheck);
+    console.log('📊 State Data:', stateCheck);
+    console.log('📊 State Error:', stateError);
+
+    
 
     if (oauthError) {
       console.error('❌ OAuth callback error:', oauthError);
