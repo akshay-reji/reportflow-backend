@@ -467,6 +467,31 @@ class GAOAuthService {
 
     if (error) throw new Error(`Failed to update tokens: ${error.message}`);
   }
+
+  async storeOAuthState(state, stateData) {
+  console.log('💾 Storing OAuth state:', state);
+  console.log('📦 State data:', stateData);
+  
+  const { error } = await supabase
+    .from('oauth_states')
+    .insert({
+      state: state,
+      state_data: stateData,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    });
+
+  // 🚨 CRITICAL: Check for errors
+  if (error) {
+    console.error('❌ Failed to store OAuth state:', error);
+    throw new Error(`Failed to store OAuth state: ${error.message}`);
+  }
+  
+  console.log('✅ OAuth state stored successfully');
+}
+
+
+
+
 }
 
 module.exports = new GAOAuthService();
