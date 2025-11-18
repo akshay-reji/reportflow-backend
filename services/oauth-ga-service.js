@@ -469,34 +469,52 @@ class GAOAuthService {
   }
 
   async storeOAuthState(state, stateData) {
+  console.log('=== 🚨 STORE OAUTH STATE DEBUG START ===');
   console.log('💾 Storing OAuth state:', state);
-  console.log('📦 State data:', stateData);
+  console.log('📦 State data:', JSON.stringify(stateData, null, 2));
+  console.log('🕒 Current time:', new Date().toISOString());
   
   try {
+    // 🚨 DEBUG: Check if we can even connect to database
+    console.log('🔧 Testing database connection...');
+    
     // 🚨 FIRST DELETE ANY EXISTING STATE WITH SAME VALUE
-    await supabase
+    console.log('🗑️ Deleting existing state if any...');
+    const { error: deleteError } = await supabase
       .from('oauth_states')
       .delete()
       .eq('state', state);
 
+    if (deleteError) {
+      console.error('❌ Delete error:', deleteError);
+    } else {
+      console.log('✅ Delete completed');
+    }
+
     // 🚨 THEN INSERT THE NEW STATE
-    const { error } = await supabase
+    console.log('📝 Inserting new state...');
+    const { data, error } = await supabase
       .from('oauth_states')
       .insert({
         state: state,
         state_data: stateData,
         expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-      });
+      })
+      .select(); // Add .select() to get returned data
 
     if (error) {
-      console.error('❌ Failed to store OAuth state:', error);
+      console.error('❌ INSERT FAILED:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       throw new Error(`Failed to store OAuth state: ${error.message}`);
     }
     
+    console.log('✅ INSERT SUCCESSFUL:', data);
     console.log('✅ OAuth state stored successfully');
+    console.log('=== ✅ STORE OAUTH STATE DEBUG END ===');
     
   } catch (error) {
-    console.error('❌ State storage failed:', error);
+    console.error('❌ STATE STORAGE COMPLETELY FAILED:', error);
+    console.log('=== ❌ STORE OAUTH STATE DEBUG END ===');
     throw error;
   }
 }
