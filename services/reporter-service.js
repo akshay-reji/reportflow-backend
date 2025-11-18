@@ -262,6 +262,18 @@ class ReporterService {
 
         return reportData;
     }
+
+    // In reporter-service.js - Add timeout awareness
+        async generateAndSendReport(reportConfigId, tenantId) {
+        const startTime = Date.now();
+        const MAX_DURATION = 55000; // 55 seconds for safety
+        
+        // Check timeout periodically in loops
+        if (Date.now() - startTime > MAX_DURATION) {
+            throw new Error('Operation timed out in serverless environment');
+        }
+        // ... rest of your code
+        }
 }
 
 module.exports = new ReporterService();

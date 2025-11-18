@@ -7,7 +7,7 @@ class GAOAuthService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_OAUTH_CLIENT_ID,
       process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-      `${process.env.BASE_URL || 'https://reportflow-backend.netlify.app'}/api/oauth/ga/callback`
+      `${process.env.BASE_URL || 'https://reportflow-backend-8ajyo7dtv-reportflows-projects.vercel.app'}/api/oauth/ga/callback`
     );
     
     // Revolutionary scopes for maximum data access
