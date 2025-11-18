@@ -119,7 +119,19 @@ router.get('/callback', async (req, res) => {
     console.log('📊 State Data:', stateCheck);
     console.log('📊 State Error:', stateError);
 
-    
+    // 🚨 CRITICAL FIX: Check if state exists and is not expired
+    if (stateCheck) {
+      const isExpired = new Date(stateCheck.expires_at) < new Date();
+      console.log('📊 State expired:', isExpired);
+      console.log('📊 Current time:', new Date().toISOString());
+      console.log('📊 Expires at:', stateCheck.expires_at);
+      
+      if (isExpired) {
+        throw new Error('OAuth state has expired - please restart the OAuth flow');
+      }
+    } else {
+      throw new Error('OAuth state not found in database - possible security issue or expired state');
+    }
 
     if (oauthError) {
       console.error('❌ OAuth callback error:', oauthError);
@@ -1007,6 +1019,42 @@ router.post('/test', async (req, res) => {
 // Redirect GET /test to test-complete
 router.get('/test', async (req, res) => {
   res.redirect('/api/oauth/ga/test-complete');
+});
+
+// 🐛 DEBUG ROUTE - Add this before module.exports
+router.get('/debug-validate-state', async (req, res) => {
+  try {
+    const { state } = req.query;
+    
+    if (!state) {
+      return res.json({ error: 'Missing state parameter' });
+    }
+
+    console.log('🔍 Debug State Validation:', state);
+    
+    const { data, error } = await supabase
+      .from('oauth_states')
+      .select('*')
+      .eq('state', state)
+      .single();
+    
+    const currentTime = new Date();
+    const isExpired = data ? new Date(data.expires_at) < currentTime : true;
+    
+    res.json({
+      state: state,
+      foundInDB: !!data,
+      isExpired: isExpired,
+      expires_at: data?.expires_at,
+      current_time: currentTime.toISOString(),
+      time_until_expiry: data ? (new Date(data.expires_at) - currentTime) / 1000 : 0,
+      data: data,
+      error: error
+    });
+
+  } catch (error) {
+    res.json({ error: error.message });
+  }
 });
 
 module.exports = router;
