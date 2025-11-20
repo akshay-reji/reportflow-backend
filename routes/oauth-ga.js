@@ -362,6 +362,15 @@ router.get('/test-complete', async (req, res) => {
       console.log('🔍 No GA connection found (expected)');
       connectionStatus = { connected: false };
     }
+    console.log('🔍 DEBUG Template Variables:', {
+        testTenantId,
+        testConfigId,
+        connectionStatus,
+        tenantIdType: typeof testTenantId,
+        configIdType: typeof testConfigId,
+        tenantIdLength: testTenantId?.length,
+        configIdLength: testConfigId?.length
+      });
 
     res.send(`
       <html>
