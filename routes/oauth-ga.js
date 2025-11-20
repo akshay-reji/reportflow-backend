@@ -26,6 +26,7 @@ const verifyWebhook = (req, res, next) => {
 };
 
 // 🎯 INITIATE GOOGLE ANALYTICS OAUTH FLOW
+// In routes/oauth-ga.js - /auth route
 router.get('/auth', async (req, res) => {
   try {
     const { tenant_id, report_config_id, property_id } = req.query;
@@ -56,6 +57,8 @@ router.get('/auth', async (req, res) => {
             .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
             .btn { background: #2c5aa0; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
             .info { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: left; }
+            .property-input { margin: 15px 0; }
+            input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
           </style>
         </head>
         <body>
@@ -67,10 +70,26 @@ router.get('/auth', async (req, res) => {
               <h3>Connection Details:</h3>
               <p><strong>Tenant ID:</strong> ${tenant_id}</p>
               <p><strong>Report Config:</strong> ${report_config_id}</p>
-              ${property_id ? `<p><strong>Property ID:</strong> ${property_id}</p>` : ''}
+              
+              <div class="property-input">
+                <label for="property_id"><strong>GA4 Property ID (Optional):</strong></label>
+                <input type="text" id="property_id" name="property_id" placeholder="e.g., 123456789" value="${property_id || ''}">
+                <small>Find this in GA4 under Admin > Property Settings. If not provided, you'll be prompted later.</small>
+              </div>
             </div>
             
-            <a href="${authUrl}" class="btn">Connect Google Analytics</a>
+            <button onclick="startOAuth()" class="btn">Connect Google Analytics</button>
+            
+            <script>
+              function startOAuth() {
+                const propertyId = document.getElementById('property_id').value;
+                let authUrl = '${authUrl}';
+                if (propertyId) {
+                  authUrl = authUrl + (authUrl.includes('?') ? '&' : '?') + 'property_id=' + encodeURIComponent(propertyId);
+                }
+                window.location.href = authUrl;
+              }
+            </script>
             
             <p><small>You'll be redirected to Google to authorize access to your Analytics data.</small></p>
             

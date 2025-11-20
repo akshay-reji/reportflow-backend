@@ -88,44 +88,42 @@ class GAOAuthService {
 
   // 📊 Fetch GA4 data with advanced metrics
   async fetchGA4Data(tenantId, reportConfigId, dateRange = { startDate: '30daysAgo', endDate: 'today' }) {
-    try {
-      console.log(`📊 Fetching GA4 data for tenant: ${tenantId}`);
-      
-      // Get stored tokens
-      const { tokens, propertyId } = await this.getStoredGATokens(tenantId, reportConfigId);
-      this.oauth2Client.setCredentials(tokens);
-      
-      // Refresh tokens if needed
-      await this.refreshTokensIfNeeded(tenantId, reportConfigId, tokens);
-      
-      // Revolutionary data fetching - multiple report types in one call
-      const [basicMetrics, engagementData, conversionData, audienceData] = await Promise.all([
-        this.fetchBasicMetrics(propertyId, dateRange),
-        this.fetchEngagementMetrics(propertyId, dateRange),
-        this.fetchConversionMetrics(propertyId, dateRange),
-        this.fetchAudienceMetrics(propertyId, dateRange)
-      ]);
-
-      // Cross-correlate data for insights
-      const correlatedData = this.correlateMetrics({
-        basic: basicMetrics,
-        engagement: engagementData,
-        conversion: conversionData,
-        audience: audienceData
-      });
-
-      return {
-        ...correlatedData,
-        propertyId,
-        dateRange,
-        fetchedAt: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ GA4 data fetch failed:', error);
-      throw new Error(`Data fetch failed: ${error.message}`);
+  try {
+    console.log(`📊 Fetching GA4 data for tenant: ${tenantId}`);
+    
+    // Get stored tokens
+    const { tokens, propertyId } = await this.getStoredGATokens(tenantId, reportConfigId);
+    
+    if (!propertyId) {
+      throw new Error('GA4 Property ID not configured. Please provide your GA4 Property ID in the connection settings.');
     }
+    
+    this.oauth2Client.setCredentials(tokens);
+    
+    // Refresh tokens if needed
+    await this.refreshTokensIfNeeded(tenantId, reportConfigId, tokens);
+    
+    // Rest of your data fetching code...
+    const [basicMetrics, engagementData, conversionData, audienceData] = await Promise.all([
+      this.fetchBasicMetrics(propertyId, dateRange),
+      this.fetchEngagementMetrics(propertyId, dateRange),
+      this.fetchConversionMetrics(propertyId, dateRange),
+      this.fetchAudienceMetrics(propertyId, dateRange)
+    ]);
+
+    // ... rest of correlation logic
+    return {
+      ...correlatedData,
+      propertyId,
+      dateRange,
+      fetchedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ GA4 data fetch failed:', error);
+    throw new Error(`Data fetch failed: ${error.message}`);
   }
+}
 
   // 🔄 Token refresh with automatic retry
   async refreshTokensIfNeeded(tenantId, reportConfigId, tokens) {
@@ -227,46 +225,90 @@ class GAOAuthService {
 
   async getGA4PropertyInfo(tokens) {
   try {
-    // Use basic Analytics Data API instead of Admin API for simplicity
+    console.log('🔍 Fetching GA4 property information...');
+    
+    // Use Analytics Data API to discover properties
     const analytics = google.analyticsdata({ version: 'v1beta', auth: this.oauth2Client });
     
-    // Try to get account info using the data API
-    // This is a simplified approach - we'll use basic scope
+    // Try to get account summaries to find properties
+    const admin = google.analyticsadmin({ version: 'v1alpha', auth: this.oauth2Client });
+    
+    try {
+      // Try Admin API first
+      const accounts = await admin.accounts.list();
+      
+      if (accounts.data.accounts && accounts.data.accounts.length > 0) {
+        const account = accounts.data.accounts[0];
+        const properties = await admin.properties.list({
+          parent: account.name
+        });
+        
+        if (properties.data.properties && properties.data.properties.length > 0) {
+          const property = properties.data.properties[0];
+          console.log('✅ Found GA4 property via Admin API:', property.displayName);
+          
+          return {
+            accountName: account.displayName,
+            accountId: account.name.split('/')[1],
+            propertyId: property.name.split('/')[1], // This is the numeric property ID
+            propertyName: property.displayName,
+            accessible: true
+          };
+        }
+      }
+    } catch (adminError) {
+      console.log('⚠️ Admin API not available, using manual property ID input');
+    }
+    
+    // Fallback: Return instructions for manual property ID
     return {
       accessible: true,
-      basicScope: true,
-      note: 'Using basic Analytics read access. Enable Admin API for property details.'
+      manualPropertyIdRequired: true,
+      note: 'Please manually enter your GA4 Property ID. You can find it in your Google Analytics account under Admin > Property Settings.',
+      instructions: 'The Property ID is a numeric value like "123456789"'
     };
     
   } catch (error) {
-    console.warn('⚠️ Using basic Analytics scope:', error.message);
+    console.warn('⚠️ Could not fetch property details:', error.message);
     return { 
       accessible: true, 
-      basicScope: true,
-      note: 'Basic access - enable Admin API for full property details'
+      manualPropertyIdRequired: true,
+      note: 'Basic access - manual property ID required'
     };
   }
 }
 
   async storeGATokens(tenantId, reportConfigId, tokens, propertyInfo, customPropertyId = null) {
-  const gaConfig = {
-    oauth_tokens: {
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      scope: tokens.scope,
-      token_type: tokens.token_type,
-      expiry_date: tokens.expiry_date
-    },
-    property_info: propertyInfo,
-    connected_at: new Date().toISOString(),
-    property_id: customPropertyId || (propertyInfo.properties && propertyInfo.properties[0]?.name)
-  };
-
   console.log('💾 Storing GA tokens for tenant:', tenantId);
   
   try {
-    // 🚨 FIXED: Use proper Supabase v2 syntax
-    // First, get the current sources
+    // If we have a manual property ID requirement, we need to handle it
+    let propertyId = customPropertyId;
+    
+    if (propertyInfo.manualPropertyIdRequired) {
+      console.log('📝 Manual property ID required - will need user input');
+      // We'll handle this in the UI - for now store without property ID
+      propertyId = null;
+    } else if (propertyInfo.propertyId) {
+      propertyId = propertyInfo.propertyId;
+      console.log('✅ Using discovered property ID:', propertyId);
+    }
+    
+    const gaConfig = {
+      oauth_tokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        scope: tokens.scope,
+        token_type: tokens.token_type,
+        expiry_date: tokens.expiry_date
+      },
+      property_info: propertyInfo,
+      connected_at: new Date().toISOString(),
+      property_id: propertyId,
+      manual_property_id_required: propertyInfo.manualPropertyIdRequired || false
+    };
+
+    // Get current sources
     const { data: currentConfig, error: fetchError } = await supabase
       .from('report_configs')
       .select('sources')
@@ -276,7 +318,7 @@ class GAOAuthService {
 
     if (fetchError) throw fetchError;
 
-    // Merge the new GA config with existing sources
+    // Merge the new GA config
     const updatedSources = {
       ...currentConfig.sources,
       google_analytics: gaConfig
