@@ -7,7 +7,7 @@ class GAOAuthService {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_OAUTH_CLIENT_ID,
       process.env.GOOGLE_OAUTH_CLIENT_SECRET,
-      `${process.env.BASE_URL || 'https://reportflow-backend-8ajyo7dtv-reportflows-projects.vercel.app'}/api/oauth/ga/callback`
+      `${process.env.BASE_URL || 'http://localhost:3001'}/api/oauth/ga/callback`
     );
     
     // Revolutionary scopes for maximum data access
@@ -185,20 +185,7 @@ class GAOAuthService {
     };
   }
 
-  // PRIVATE METHODS
-
-  async storeOAuthState(state, stateData) {
-    const { error } = await supabase
-      .from('oauth_states')
-      .insert({
-        state: state,
-        state_data: stateData,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-      });
-    
-    if (error) throw new Error('Failed to store OAuth state');
-  }
-
+  
   async validateOAuthState(state) {
     const { data, error } = await supabase
       .from('oauth_states')
@@ -510,5 +497,4 @@ class GAOAuthService {
 
 
 }
-
 module.exports = new GAOAuthService();

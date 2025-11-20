@@ -165,4 +165,58 @@ router.post('/test', async (req, res) => {
   }
 });
 
+// Add to routes/reporter.js - after your existing routes
+
+// ✅ ADD THIS: GET endpoint for browser testing
+router.get('/test', async (req, res) => {
+  try {
+    // Get the first valid report config from the database
+    const { data: reportConfigs, error } = await supabase
+      .from('report_configs')
+      .select('id, tenant_id')
+      .limit(1);
+
+    if (error || !reportConfigs || reportConfigs.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No report configurations found. Run /api/reporter/setup-test-data first.' 
+      });
+    }
+
+    const validConfig = reportConfigs[0];
+    console.log(`🧪 Using valid report config: ${validConfig.id}, tenant: ${validConfig.tenant_id}`);
+    
+    const result = await reporterService.generateAndSendReport(validConfig.id, validConfig.tenant_id);
+    
+    res.json({
+      ...result,
+      note: 'This was a test run with valid database records (via GET)'
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ✅ ADD THIS: Simple HTML test page
+router.get('/test-page', (req, res) => {
+  res.send(`
+    <html>
+      <body style="font-family: Arial; padding: 40px;">
+        <h1>🧪 Reporter Test Page</h1>
+        <p>Test the reporter service endpoints:</p>
+        <ul>
+          <li><a href="/api/reporter/test">GET /api/reporter/test</a> - Test report generation</li>
+          <li><a href="/api/reporter/setup-test-data">GET /api/reporter/setup-test-data</a> - Create test data</li>
+        </ul>
+        <p>Or use curl for POST endpoints:</p>
+        <pre>curl -X POST http://localhost:3001/api/reporter/test</pre>
+      </body>
+    </html>
+  `);
+});
+
 module.exports = router;
