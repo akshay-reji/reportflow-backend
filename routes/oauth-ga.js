@@ -154,31 +154,63 @@ router.get('/callback', async (req, res) => {
 
     if (oauthError) {
       console.error('❌ OAuth callback error:', oauthError);
-      return res.send(`
-        <html>
-          <head>
-            <title>ReportFlow - OAuth Failed</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f5f5f5; }
-              .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
-              .error { color: #e74c3c; font-size: 48px; margin-bottom: 20px; }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <div class="error">❌</div>
-              <h1>OAuth Authorization Failed</h1>
-              <p>Google returned an error: <strong>${oauthError}</strong></p>
-              <p>This usually happens if you denied access or there was an issue with the authorization request.</p>
-              <div style="margin-top: 30px;">
-                <a href="/api/oauth/ga/test-complete" style="background: #2c5aa0; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">
-                  Try Again
-                </a>
-              </div>
-            </div>
-          </body>
-        </html>
-      `);
+      return // In the success response - update the connection summary
+res.send(`
+  <html>
+    <head>
+      <title>ReportFlow - Google Analytics Connected</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #f5f5f5; }
+        .card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+        .success { color: #27ae60; font-size: 48px; margin-bottom: 20px; }
+        .data { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: left; font-family: monospace; font-size: 12px; overflow-x: auto; }
+        .btn { background: #2c5aa0; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px; }
+        .step { background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="success">✅</div>
+        <h1>Google Analytics Connected!</h1>
+        <p>Your Google Analytics account has been successfully connected to ReportFlow.</p>
+        
+        <div class="step">
+          <h3>🎉 Connection Successful</h3>
+          <p>Tokens stored securely and property information retrieved.</p>
+        </div>
+        
+        <div class="data">
+          <strong>Connection Summary:</strong>
+          <pre>${JSON.stringify({
+            tenantId: result.tenantId,
+            reportConfigId: result.reportConfigId,
+            propertyId: result.propertyId || 'Not set',
+            property: result.property?.accountName || 'Basic Access',
+            connectedAt: new Date().toISOString(),
+            tokensStored: result.tokensStored
+          }, null, 2)}</pre>
+        </div>
+        
+        <div class="step">
+          <h3>🚀 Next Steps</h3>
+          <p>Test your connection by fetching real Google Analytics data:</p>
+        </div>
+        
+        <div>
+          <a href="/api/oauth/ga/test-fetch-page?tenant_id=${result.tenantId}&report_config_id=${result.reportConfigId}" class="btn">
+            Test Data Fetching
+          </a>
+          <a href="/api/oauth/ga/status?tenant_id=${result.tenantId}&report_config_id=${result.reportConfigId}" class="btn" style="background: #27ae60;">
+            Check Connection Status
+          </a>
+          <a href="/api/oauth/ga/test-complete" class="btn" style="background: #666;">
+            Back to Test Suite
+          </a>
+        </div>
+      </div>
+    </body>
+  </html>
+`);
     }
 
     if (!code || !state) {

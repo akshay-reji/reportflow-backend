@@ -46,45 +46,54 @@ class GAOAuthService {
 
   // 🔄 Handle OAuth callback with enhanced error handling
   async handleCallback(code, state) {
-    try {
-      console.log('🔄 Handling GA OAuth callback...');
-      
-      // Validate state to prevent CSRF
-      const stateData = await this.validateOAuthState(state);
-      if (!stateData) {
-        throw new Error('Invalid OAuth state - possible security issue');
-      }
-
-      // Exchange code for tokens
-      const { tokens } = await this.oauth2Client.getToken(code);
-      this.oauth2Client.setCredentials(tokens);
-      
-      console.log('✅ Tokens received, fetching GA account info...');
-
-      // Get GA4 property information
-      const propertyInfo = await this.getGA4PropertyInfo(tokens);
-      
-      // Store tokens and property info securely
-      await this.storeGATokens(
-        stateData.tenantId, 
-        stateData.reportConfigId, 
-        tokens, 
-        propertyInfo,
-        stateData.propertyId
-      );
-
-      return {
-        success: true,
-        message: 'Google Analytics connected successfully!',
-        property: propertyInfo,
-        tokensStored: true
-      };
-
-    } catch (error) {
-      console.error('❌ GA OAuth callback failed:', error);
-      throw new Error(`OAuth failed: ${error.message}`);
+  try {
+    console.log('🔄 Handling GA OAuth callback...');
+    
+    // Validate state to prevent CSRF
+    const stateData = await this.validateOAuthState(state);
+    if (!stateData) {
+      throw new Error('Invalid OAuth state - possible security issue');
     }
+
+    console.log('📦 State data retrieved:', {
+      tenantId: stateData.tenantId,
+      reportConfigId: stateData.reportConfigId,
+      propertyId: stateData.propertyId
+    });
+
+    // Exchange code for tokens
+    const { tokens } = await this.oauth2Client.getToken(code);
+    this.oauth2Client.setCredentials(tokens);
+    
+    console.log('✅ Tokens received, fetching GA account info...');
+
+    // Get GA4 property information
+    const propertyInfo = await this.getGA4PropertyInfo(tokens);
+    
+    // 🚨 CRITICAL: Pass the propertyId from stateData to storeGATokens
+    await this.storeGATokens(
+      stateData.tenantId, 
+      stateData.reportConfigId, 
+      tokens, 
+      propertyInfo,
+      stateData.propertyId // 🚨 This was missing!
+    );
+
+    return {
+      success: true,
+      message: 'Google Analytics connected successfully!',
+      tenantId: stateData.tenantId,
+      reportConfigId: stateData.reportConfigId,
+      property: propertyInfo,
+      tokensStored: true,
+      propertyId: stateData.propertyId
+    };
+
+  } catch (error) {
+    console.error('❌ GA OAuth callback failed:', error);
+    throw new Error(`OAuth failed: ${error.message}`);
   }
+}
 
   // 📊 Fetch GA4 data with advanced metrics
   async fetchGA4Data(tenantId, reportConfigId, dateRange = { startDate: '30daysAgo', endDate: 'today' }) {
@@ -280,14 +289,17 @@ class GAOAuthService {
 
   async storeGATokens(tenantId, reportConfigId, tokens, propertyInfo, customPropertyId = null) {
   console.log('💾 Storing GA tokens for tenant:', tenantId);
+  console.log('📝 Provided property ID:', customPropertyId);
   
   try {
-    // If we have a manual property ID requirement, we need to handle it
+    // 🚨 CRITICAL FIX: Use the provided property ID from the OAuth flow
     let propertyId = customPropertyId;
     
-    if (propertyInfo.manualPropertyIdRequired) {
+    // If we got a property ID from the user input, use it!
+    if (propertyId) {
+      console.log('✅ Using provided property ID:', propertyId);
+    } else if (propertyInfo.manualPropertyIdRequired) {
       console.log('📝 Manual property ID required - will need user input');
-      // We'll handle this in the UI - for now store without property ID
       propertyId = null;
     } else if (propertyInfo.propertyId) {
       propertyId = propertyInfo.propertyId;
@@ -304,9 +316,14 @@ class GAOAuthService {
       },
       property_info: propertyInfo,
       connected_at: new Date().toISOString(),
-      property_id: propertyId,
+      property_id: propertyId, // 🚨 This is the key line!
       manual_property_id_required: propertyInfo.manualPropertyIdRequired || false
     };
+
+    console.log('📦 Final GA Config:', {
+      property_id: gaConfig.property_id,
+      has_tokens: !!gaConfig.oauth_tokens.access_token
+    });
 
     // Get current sources
     const { data: currentConfig, error: fetchError } = await supabase
@@ -316,7 +333,10 @@ class GAOAuthService {
       .eq('tenant_id', tenantId)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error('❌ Failed to fetch current config:', fetchError);
+      throw fetchError;
+    }
 
     // Merge the new GA config
     const updatedSources = {
@@ -333,9 +353,15 @@ class GAOAuthService {
       .eq('id', reportConfigId)
       .eq('tenant_id', tenantId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase update error:', error);
+      throw error;
+    }
     
-    console.log('✅ GA tokens stored successfully');
+    console.log('✅ GA tokens stored successfully with property ID:', propertyId);
+    
+    // Return the stored config for verification
+    return { propertyId, success: true };
     
   } catch (error) {
     console.error('❌ Failed to store GA tokens:', error);
@@ -344,24 +370,38 @@ class GAOAuthService {
 }
 
   async getStoredGATokens(tenantId, reportConfigId) {
-    const { data, error } = await supabase
-      .from('report_configs')
-      .select('sources')
-      .eq('id', reportConfigId)
-      .eq('tenant_id', tenantId)
-      .single();
+  console.log('🔍 Getting stored GA tokens for:', { tenantId, reportConfigId });
+  
+  const { data, error } = await supabase
+    .from('report_configs')
+    .select('sources')
+    .eq('id', reportConfigId)
+    .eq('tenant_id', tenantId)
+    .single();
 
-    if (error || !data.sources?.google_analytics) {
-      throw new Error('GA configuration not found - please reconnect Google Analytics');
-    }
-
-    const gaConfig = data.sources.google_analytics;
-    return {
-      tokens: gaConfig.oauth_tokens,
-      propertyId: gaConfig.property_id,
-      propertyInfo: gaConfig.property_info
-    };
+  if (error || !data.sources?.google_analytics) {
+    console.error('❌ GA configuration not found:', {
+      error,
+      hasSources: !!data?.sources,
+      hasGA: !!data?.sources?.google_analytics
+    });
+    throw new Error('GA configuration not found - please reconnect Google Analytics');
   }
+
+  const gaConfig = data.sources.google_analytics;
+  
+  console.log('📊 Retrieved GA config:', {
+    hasTokens: !!gaConfig.oauth_tokens?.access_token,
+    propertyId: gaConfig.property_id,
+    connectedAt: gaConfig.connected_at
+  });
+
+  return {
+    tokens: gaConfig.oauth_tokens,
+    propertyId: gaConfig.property_id, // 🚨 Make sure this is returned
+    propertyInfo: gaConfig.property_info
+  };
+}
 
   // DATA FETCHING METHODS
 
