@@ -187,20 +187,43 @@ class GAOAuthService {
 
   
   async validateOAuthState(state) {
-    const { data, error } = await supabase
-      .from('oauth_states')
-      .select('state_data')
-      .eq('state', state)
-      .gt('expires_at', new Date())
-      .single();
-    
-    if (error || !data) return null;
-    
-    // Clean up used state
-    await supabase.from('oauth_states').delete().eq('state', state);
-    
-    return data.state_data;
+  console.log('🔍 validateOAuthState called with state:', state);
+  console.log('🕒 Current time:', new Date().toISOString());
+  
+  const { data, error } = await supabase
+    .from('oauth_states')
+    .select('state_data, expires_at, created_at')
+    .eq('state', state)
+    .single(); // 🚨 REMOVE: .gt('expires_at', new Date()) - we'll check manually
+
+  console.log('📊 Database query result:', { data, error });
+
+  if (error || !data) {
+    console.log('❌ State not found in database');
+    return null;
   }
+
+  // 🚨 MANUALLY check expiration with better logging
+  const isExpired = new Date(data.expires_at) < new Date();
+  console.log('📊 Expiration check:', {
+    expires_at: data.expires_at,
+    current_time: new Date().toISOString(),
+    is_expired: isExpired,
+    time_until_expiry: (new Date(data.expires_at) - new Date()) / 1000
+  });
+
+  if (isExpired) {
+    console.log('❌ State has expired');
+    // Clean up expired state
+    await supabase.from('oauth_states').delete().eq('state', state);
+    return null;
+  }
+
+  console.log('✅ State validation SUCCESS');
+  // Clean up used state
+  await supabase.from('oauth_states').delete().eq('state', state);
+  return data.state_data;
+}
 
   async getGA4PropertyInfo(tokens) {
     try {
@@ -458,37 +481,37 @@ class GAOAuthService {
   async storeOAuthState(state, stateData) {
   console.log('=== 🚨 STORE OAUTH STATE DEBUG START ===');
   console.log('💾 Storing OAuth state:', state);
-  console.log('📦 State data:', JSON.stringify(stateData, null, 2));
-  console.log('🕒 Current time:', new Date().toISOString());
   
   try {
-    // 🚨 OPTIMIZED: Use upsert instead of delete + insert
-    console.log('📝 Upserting state...');
+    // 🚨 FIX: Remove the duplicate state from state_data
+    const cleanStateData = {
+      tenantId: stateData.tenantId,
+      reportConfigId: stateData.reportConfigId, 
+      propertyId: stateData.propertyId,
+      timestamp: stateData.timestamp
+      // 🚨 REMOVE: state: stateData.state (duplicate)
+    };
+
+    console.log('📦 Clean State data:', JSON.stringify(cleanStateData, null, 2));
+    
     const { data, error } = await supabase
       .from('oauth_states')
       .upsert({
         state: state,
-        state_data: stateData,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        state_data: cleanStateData, // Use cleaned data
+        expires_at: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
       }, {
-        onConflict: 'state'  // This handles duplicates automatically
+        onConflict: 'state'
       })
       .select();
 
-    if (error) {
-      console.error('❌ UPSERT FAILED:', error);
-      console.error('❌ Error details:', JSON.stringify(error, null, 2));
-      throw new Error(`Failed to store OAuth state: ${error.message}`);
-    }
+    if (error) throw error;
     
-    console.log('✅ UPSERT SUCCESSFUL:', data);
-    console.log('✅ OAuth state stored successfully');
+    console.log('✅ State stored successfully');
     console.log('=== ✅ STORE OAUTH STATE DEBUG END ===');
     return data;
-    
   } catch (error) {
-    console.error('❌ STATE STORAGE COMPLETELY FAILED:', error);
-    console.log('=== ❌ STORE OAUTH STATE DEBUG END ===');
+    console.error('❌ State storage failed:', error);
     throw error;
   }
 }
