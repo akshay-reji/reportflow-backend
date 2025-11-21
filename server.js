@@ -13,12 +13,15 @@ const schedulerRoutes = require('./routes/scheduler');
 const reporterRoutes = require('./routes/reporter');
 const emailRoutes = require('./routes/email');
 const oauthGaRoutes = require('./routes/oauth-ga');
+const aiInsightsRoutes = require('./routes/ai-insights');
 
 // ✅ CRITICAL FIX: Use routes
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/reporter', reporterRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/oauth/ga', oauthGaRoutes);
+app.use('/api/ai-insights', aiInsightsRoutes);
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -28,7 +31,19 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     platform: process.env.NETLIFY ? 'Netlify Functions' : 'Local Server',
     message: 'API routing is working!',
-    routes: ['/api/scheduler', '/api/reporter', '/api/email', '/api/oauth/ga']
+    routes: [
+      '/api/scheduler', 
+      '/api/reporter', 
+      '/api/email', 
+      '/api/oauth/ga',
+      '/api/ai-insights' // 🆕 NEW AI INSIGHTS ROUTE
+    ],
+    revolutionary_features: {
+      ai_insights: 'ACTIVE 🧠',
+      predictive_analytics: 'READY 🔮',
+      anomaly_detection: 'READY ⚠️',
+      competitive_benchmarking: 'READY 📊'
+    }
   });
 });
 

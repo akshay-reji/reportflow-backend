@@ -72,31 +72,48 @@ class ReporterService {
         if (error) throw error;
         return data;
     }
+// Add to your reporter-service.js, in the generatePDFReport function
 
-    async generatePDFReport(reportConfig) {
-        const periodStart = new Date();
-        periodStart.setDate(periodStart.getDate() - 30); // Last 30 days
-        
-        const periodEnd = new Date();
+async generatePDFReport(reportConfig) {
+  const periodStart = new Date();
+  periodStart.setDate(periodStart.getDate() - 30);
+  const periodEnd = new Date();
 
-        // Generate mock data
-        const templateData = pdfService.generateMockAnalyticsData(
-            reportConfig.clients.client_name,
-            periodStart.toLocaleDateString(),
-            periodEnd.toLocaleDateString()
-        );
+  // Generate mock data
+  const templateData = pdfService.generateMockAnalyticsData(
+    reportConfig.clients.client_name,
+    periodStart.toLocaleDateString(),
+    periodEnd.toLocaleDateString()
+  );
 
-        // Add agency branding
-        templateData.agencyName = reportConfig.tenants.company_name;
-        templateData.agencyLogo = reportConfig.tenants.logo_path;
-        templateData.clientLogo = reportConfig.clients.logo_path;
+  // Add agency branding
+  templateData.agencyName = reportConfig.tenants.company_name;
+  templateData.agencyLogo = reportConfig.tenants.logo_path;
+  templateData.clientLogo = reportConfig.clients.logo_path;
 
-        const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
-        
-        const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
-        
-        return { pdfBuffer, fileName };
+  // 🆕 REVOLUTIONARY: Add AI Insights if enabled
+  if (reportConfig.ai_insights_enabled) {
+    try {
+      const aiInsightsService = require('./ai-insights-service');
+      const mockGAData = this.generateMockGADataForAI(); // You'd replace this with real GA data
+      const aiInsights = await aiInsightsService.generatePredictiveInsights(mockGAData, null, 3);
+      
+      templateData.ai_insights = aiInsights;
+      templateData.has_ai_insights = true;
+    } catch (error) {
+      console.log('⚠️ AI insights generation failed, proceeding without:', error.message);
+      templateData.has_ai_insights = false;
     }
+  } else {
+    templateData.has_ai_insights = false;
+  }
+
+  const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
+  
+  const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
+  
+  return { pdfBuffer, fileName };
+}
 
     async uploadToStorage(pdfBuffer, fileName, tenantId) {
         const { data, error } = await supabase.storage
