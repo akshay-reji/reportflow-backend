@@ -14,6 +14,9 @@ const reporterRoutes = require('./routes/reporter');
 const emailRoutes = require('./routes/email');
 const oauthGaRoutes = require('./routes/oauth-ga');
 const aiInsightsRoutes = require('./routes/ai-insights');
+const oauthMetaRoutes = require('./routes/oauth-meta');
+const unifiedReporterRoutes = require('./routes/unified-reporter');
+
 
 // ✅ CRITICAL FIX: Use routes
 app.use('/api/scheduler', schedulerRoutes);
@@ -21,6 +24,9 @@ app.use('/api/reporter', reporterRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/oauth/ga', oauthGaRoutes);
 app.use('/api/ai-insights', aiInsightsRoutes);
+app.use('/api/oauth/meta', oauthMetaRoutes);
+app.use('/api/unified-reporter', unifiedReporterRoutes);
+
 
 
 // Health check endpoint
@@ -36,13 +42,19 @@ app.get('/api/health', (req, res) => {
       '/api/reporter', 
       '/api/email', 
       '/api/oauth/ga',
-      '/api/ai-insights' // 🆕 NEW AI INSIGHTS ROUTE
+      '/api/oauth/meta', // 🆕 META OAUTH ROUTES
+      '/api/ai-insights'
     ],
     revolutionary_features: {
       ai_insights: 'ACTIVE 🧠',
-      predictive_analytics: 'READY 🔮',
+      predictive_analytics: 'READY 🔮', 
       anomaly_detection: 'READY ⚠️',
-      competitive_benchmarking: 'READY 📊'
+      competitive_benchmarking: 'READY 📊',
+      meta_integration: 'ACTIVE 📱' // 🆕 META STATUS
+    },
+    oauth_providers: {
+      google_analytics: '✅ CONFIGURED',
+      meta_ads: process.env.META_APP_ID ? '✅ CONFIGURED' : '❌ NEEDS SETUP'
     }
   });
 });

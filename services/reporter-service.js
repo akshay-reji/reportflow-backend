@@ -1,6 +1,7 @@
 const supabase = require('../lib/supabase');
 const pdfService = require('./pdf-service');
 const emailService = require('./email-service');
+const unifiedReporterService = require('./unified-reporter-service');
 
 class ReporterService {
     async generateAndSendReport(reportConfigId, tenantId) {
@@ -79,7 +80,18 @@ async generatePDFReport(reportConfig) {
   periodStart.setDate(periodStart.getDate() - 30);
   const periodEnd = new Date();
 
-  // Generate mock data
+  // 🆕 REVOLUTIONARY: Generate unified report with GA + Meta + AI
+  console.log('🌐 Generating unified report data...');
+  const unifiedReport = await unifiedReporterService.generateUnifiedReport(
+    reportConfig.tenant_id,
+    reportConfig.id,
+    { 
+      dateRange: { startDate: '30daysAgo', endDate: 'today' },
+      predictionPeriods: 3
+    }
+  );
+
+  // Generate template data with unified report insights
   const templateData = pdfService.generateMockAnalyticsData(
     reportConfig.clients.client_name,
     periodStart.toLocaleDateString(),
@@ -91,21 +103,23 @@ async generatePDFReport(reportConfig) {
   templateData.agencyLogo = reportConfig.tenants.logo_path;
   templateData.clientLogo = reportConfig.clients.logo_path;
 
-  // 🆕 REVOLUTIONARY: Add AI Insights if enabled
-  if (reportConfig.ai_insights_enabled) {
-    try {
-      const aiInsightsService = require('./ai-insights-service');
-      const mockGAData = this.generateMockGADataForAI(); // You'd replace this with real GA data
-      const aiInsights = await aiInsightsService.generatePredictiveInsights(mockGAData, null, 3);
-      
-      templateData.ai_insights = aiInsights;
-      templateData.has_ai_insights = true;
-    } catch (error) {
-      console.log('⚠️ AI insights generation failed, proceeding without:', error.message);
-      templateData.has_ai_insights = false;
-    }
-  } else {
-    templateData.has_ai_insights = false;
+  // 🆕 ADD UNIFIED REPORT DATA
+  templateData.unified_report = unifiedReport;
+  templateData.has_unified_report = unifiedReport.success;
+  templateData.has_ai_insights = unifiedReport.ai_insights?.success || false;
+  
+  if (unifiedReport.ai_insights?.success) {
+    templateData.ai_insights = unifiedReport.ai_insights;
+  }
+
+  // Add cross-platform metrics if available
+  if (unifiedReport.blended_metrics) {
+    templateData.cross_platform_metrics = {
+      blended_roas: unifiedReport.cross_platform_analysis?.blended_roas,
+      total_revenue: unifiedReport.blended_metrics.total_revenue,
+      total_ad_spend: unifiedReport.blended_metrics.total_ad_spend,
+      overall_score: unifiedReport.performance_scorecard?.overall_score
+    };
   }
 
   const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
