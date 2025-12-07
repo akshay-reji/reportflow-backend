@@ -254,4 +254,4 @@ class MetaOAuthService {
   }
 }
 
-module.exports = new MetaOAuthService();s
+module.exports = new MetaOAuthService();

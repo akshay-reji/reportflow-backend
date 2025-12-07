@@ -16,6 +16,8 @@ const oauthGaRoutes = require('./routes/oauth-ga');
 const aiInsightsRoutes = require('./routes/ai-insights');
 const oauthMetaRoutes = require('./routes/oauth-meta');
 const unifiedReporterRoutes = require('./routes/unified-reporter');
+const paymentRoutes = require('./routes/payment');
+const usageTracking = require('./middleware/usage-limits');
 
 
 // ✅ CRITICAL FIX: Use routes
@@ -26,6 +28,9 @@ app.use('/api/oauth/ga', oauthGaRoutes);
 app.use('/api/ai-insights', aiInsightsRoutes);
 app.use('/api/oauth/meta', oauthMetaRoutes);
 app.use('/api/unified-reporter', unifiedReporterRoutes);
+app.use('/api/payment', paymentRoutes);
+//app.use('/api/reporter/generate', usageTracking.checkUsage.bind(usageTracking));
+//app.use('/api/reporter/generate', usageTracking.incrementUsage.bind(usageTracking));
 
 
 
@@ -83,6 +88,28 @@ app.get('/', (req, res) => {
   });
 });
 
+app.post('/api/usage/webhook', async (req, res) => {
+  try {
+    const { tenant_id, action, metadata } = req.body;
+    
+    // Log usage event
+    const supabase = require('./lib/supabase');
+    
+    await supabase
+      .from('usage_events')
+      .insert({
+        tenant_id,
+        action,
+        metadata,
+        created_at: new Date().toISOString()
+      });
+
+    res.json({ success: true, message: 'Usage logged' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ✅ CRITICAL FIX: Add local server startup
 if (!process.env.NETLIFY) {
   const PORT = process.env.PORT || 3001;
@@ -93,6 +120,5 @@ if (!process.env.NETLIFY) {
     console.log(`📍 Debug Routes: http://localhost:${PORT}/api/debug-routes`);
   });
 }
-
 // Export the Express app for Netlify
 module.exports = app;

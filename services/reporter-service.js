@@ -5,6 +5,9 @@ const unifiedReporterService = require('./unified-reporter-service');
 
 class ReporterService {
     async generateAndSendReport(reportConfigId, tenantId) {
+        const startTime = Date.now();
+        const MAX_DURATION = 55000; // 55 seconds for Netlify safety
+        
         try {
             console.log(`📊 Starting report generation for config: ${reportConfigId}`);
             
@@ -30,11 +33,17 @@ class ReporterService {
             console.log('💾 Updating database...');
             await this.updateDatabase(reportConfigId, tenantId, fileUrl, 'delivered', null, emailResult);
             
+            // ✅ ADD: Check timeout during long operations
+            if (Date.now() - startTime > MAX_DURATION) {
+                console.warn('⚠️ Report generation approaching timeout limit');
+            }
+            
             return {
                 success: true,
                 reportUrl: fileUrl,
                 emailMessageId: emailResult.messageId,
                 clientName: reportConfig.clients.client_name,
+                processingTime: Date.now() - startTime,
                 message: 'Report generated and delivered successfully'
             };
 
@@ -44,9 +53,86 @@ class ReporterService {
             // Update database with error
             await this.updateDatabase(reportConfigId, tenantId, null, 'failed', error.message);
             
+            // Re-throw for route handler
             throw error;
         }
     }
+
+    async generatePDFReport(reportConfig) {
+    const periodStart = new Date();
+    periodStart.setDate(periodStart.getDate() - 30);
+    const periodEnd = new Date();
+
+    console.log('🌐 Generating PDF with revolutionary AI features...');
+
+    // 🆕 Get report configuration for AI settings
+    const aiEnabled = !!reportConfig.ai_insights_enabled;
+
+    // Use the ENHANCED unified reporter with AI insights
+    const unifiedReport = await unifiedReporterService.generateUnifiedReport(
+        reportConfig.tenant_id,
+        reportConfig.id,
+        {
+            dateRange: { startDate: '30daysAgo', endDate: 'today' },
+            predictionPeriods: 3,
+            include_anomalies: aiEnabled,
+            include_benchmarks: aiEnabled,
+            industry: reportConfig.industry || 'digital_agency'
+        }
+    );
+
+    // Generate template data with enhanced AI insights
+    const templateData = pdfService.generateMockAnalyticsData(
+        reportConfig.clients.client_name,
+        periodStart.toLocaleDateString(),
+        periodEnd.toLocaleDateString()
+    );
+
+    // Add agency branding
+    templateData.agencyName = reportConfig.tenants.company_name;
+    templateData.agencyLogo = reportConfig.tenants.logo_path;
+    templateData.clientLogo = reportConfig.clients.logo_path;
+
+    // 🧠 ADD REVOLUTIONARY AI DATA TO TEMPLATE
+    templateData.unified_report = unifiedReport || {};
+    templateData.has_ai_insights = !!(unifiedReport && unifiedReport.ai_insights && unifiedReport.ai_insights.success);
+    templateData.ai_insights = unifiedReport.ai_insights || {};
+
+    // ✅ Template flags for conditional rendering (guarded)
+    templateData.has_predictive_analytics = Array.isArray(unifiedReport.ai_insights?.predictions?.revenue_forecast)
+        && unifiedReport.ai_insights.predictions.revenue_forecast.length > 0;
+
+    templateData.has_anomaly_detection = Array.isArray(unifiedReport.ai_insights?.anomaly_detection?.anomalies)
+        && unifiedReport.ai_insights.anomaly_detection.anomalies.length > 0;
+
+    templateData.has_competitive_benchmarks = !!(unifiedReport.ai_insights?.competitive_benchmarks || unifiedReport.competitive_benchmarks);
+
+    templateData.performance_score = unifiedReport.performance_scorecard?.overall_score ?? 0;
+
+    // ✅ Template flags for score colors
+    if (typeof templateData.performance_score === 'number') {
+        templateData.performance_score_high = templateData.performance_score >= 8;
+        templateData.performance_score_medium = templateData.performance_score >= 6 && templateData.performance_score < 8;
+        templateData.performance_score_low = templateData.performance_score < 6;
+    }
+
+    // Add cross-platform metrics (guarded)
+    if (unifiedReport.blended_metrics) {
+        templateData.cross_platform = {
+            blended_roas: unifiedReport.cross_platform_analysis?.blended_roas?.roas_value ?? null,
+            total_revenue: unifiedReport.blended_metrics?.total_revenue ?? 0,
+            total_ad_spend: unifiedReport.blended_metrics?.total_ad_spend ?? 0
+        };
+    }
+
+    // Final rendering
+    const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
+
+    const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
+
+    return { pdfBuffer, fileName };
+}
+
 
     async getReportConfig(reportConfigId, tenantId) {
         const { data, error } = await supabase
@@ -75,59 +161,8 @@ class ReporterService {
     }
 // Add to your reporter-service.js, in the generatePDFReport function
 
-async generatePDFReport(reportConfig) {
-  const periodStart = new Date();
-  periodStart.setDate(periodStart.getDate() - 30);
-  const periodEnd = new Date();
+// File: services/reporter-service.js - UPDATED generatePDFReport method
 
-  // 🆕 REVOLUTIONARY: Generate unified report with GA + Meta + AI
-  console.log('🌐 Generating unified report data...');
-  const unifiedReport = await unifiedReporterService.generateUnifiedReport(
-    reportConfig.tenant_id,
-    reportConfig.id,
-    { 
-      dateRange: { startDate: '30daysAgo', endDate: 'today' },
-      predictionPeriods: 3
-    }
-  );
-
-  // Generate template data with unified report insights
-  const templateData = pdfService.generateMockAnalyticsData(
-    reportConfig.clients.client_name,
-    periodStart.toLocaleDateString(),
-    periodEnd.toLocaleDateString()
-  );
-
-  // Add agency branding
-  templateData.agencyName = reportConfig.tenants.company_name;
-  templateData.agencyLogo = reportConfig.tenants.logo_path;
-  templateData.clientLogo = reportConfig.clients.logo_path;
-
-  // 🆕 ADD UNIFIED REPORT DATA
-  templateData.unified_report = unifiedReport;
-  templateData.has_unified_report = unifiedReport.success;
-  templateData.has_ai_insights = unifiedReport.ai_insights?.success || false;
-  
-  if (unifiedReport.ai_insights?.success) {
-    templateData.ai_insights = unifiedReport.ai_insights;
-  }
-
-  // Add cross-platform metrics if available
-  if (unifiedReport.blended_metrics) {
-    templateData.cross_platform_metrics = {
-      blended_roas: unifiedReport.cross_platform_analysis?.blended_roas,
-      total_revenue: unifiedReport.blended_metrics.total_revenue,
-      total_ad_spend: unifiedReport.blended_metrics.total_ad_spend,
-      overall_score: unifiedReport.performance_scorecard?.overall_score
-    };
-  }
-
-  const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
-  
-  const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
-  
-  return { pdfBuffer, fileName };
-}
 
     async uploadToStorage(pdfBuffer, fileName, tenantId) {
         const { data, error } = await supabase.storage

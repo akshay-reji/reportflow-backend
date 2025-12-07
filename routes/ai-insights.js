@@ -52,8 +52,8 @@ router.post('/predictive', verifyWebhook, async (req, res) => {
 
     // Store insights in database
     if (insights.success) {
-      await this.storeAIInsights(tenant_id, report_config_id, 'predictive', insights);
-    }
+     await storeAIInsights(tenant_id, report_config_id, 'predictive', insights);
+     }
 
     res.json({
       success: true,
@@ -96,8 +96,8 @@ router.post('/anomalies', verifyWebhook, async (req, res) => {
 
     // Store anomaly results
     if (anomalies.success) {
-      await this.storeAIInsights(tenant_id, report_config_id, 'anomaly', anomalies);
-    }
+        await storeAIInsights(tenant_id, report_config_id, 'anomaly', anomalies);
+     }
 
     res.json({
       success: true,
@@ -140,7 +140,7 @@ router.post('/benchmarking', verifyWebhook, async (req, res) => {
 
     // Store benchmarking results
     if (benchmarking.success) {
-      await this.storeAIInsights(tenant_id, report_config_id, 'benchmarking', benchmarking);
+      await storeAIInsights(tenant_id, report_config_id, 'benchmarking', benchmarking);
     }
 
     res.json({
@@ -232,17 +232,17 @@ router.post('/comprehensive', verifyWebhook, async (req, res) => {
     // Compile comprehensive report
     const comprehensiveReport = {
       success: predictive.success && anomalies.success && benchmarking.success,
-      executive_summary: this.generateExecutiveSummary(predictive, anomalies, benchmarking),
+      executive_summary: generateExecutiveSummary(predictive, anomalies, benchmarking),
       predictive_analytics: predictive,
       anomaly_detection: anomalies,
       competitive_benchmarking: benchmarking,
-      strategic_recommendations: this.generateStrategicRecommendations(predictive, anomalies, benchmarking),
+      strategic_recommendations: generateStrategicRecommendations(predictive, anomalies, benchmarking),
       generated_at: new Date().toISOString()
     };
 
     // Store comprehensive report
     if (comprehensiveReport.success) {
-      await this.storeAIInsights(tenant_id, report_config_id, 'comprehensive', comprehensiveReport);
+      await storeAIInsights(tenant_id, report_config_id, 'comprehensive', comprehensiveReport);
     }
 
     res.json({
@@ -354,6 +354,7 @@ router.get('/stored', verifyWebhook, async (req, res) => {
 // Store AI insights in database
 async function storeAIInsights(tenantId, reportConfigId, insightType, insightData) {
   try {
+    const confidence = calculateOverallConfidence(insightData);
     const { error } = await supabase
       .from('ai_insights')
       .insert({
@@ -361,7 +362,7 @@ async function storeAIInsights(tenantId, reportConfigId, insightType, insightDat
         report_config_id: reportConfigId,
         insight_type: insightType,
         insight_text: JSON.stringify(insightData),
-        confidence_score: this.calculateOverallConfidence(insightData),
+        confidence_score: confidence,
         recommended_actions: insightData.recommendations || []
       });
 
@@ -374,6 +375,7 @@ async function storeAIInsights(tenantId, reportConfigId, insightType, insightDat
     console.error('❌ AI insights storage failed:', error);
   }
 }
+
 
 // Calculate overall confidence score
 function calculateOverallConfidence(insightData) {
@@ -407,26 +409,24 @@ function generateExecutiveSummary(predictive, anomalies, benchmarking) {
 // Generate strategic recommendations
 function generateStrategicRecommendations(predictive, anomalies, benchmarking) {
   const recommendations = [];
-  
-  // Add predictive recommendations
-  if (predictive.recommendations) {
+
+  if (predictive && Array.isArray(predictive.recommendations)) {
     recommendations.push(...predictive.recommendations);
   }
-  
-  // Add anomaly recommendations
-  if (anomalies.recommendations) {
+
+  if (anomalies && Array.isArray(anomalies.recommendations)) {
     recommendations.push(...anomalies.recommendations);
   }
-  
-  // Add benchmarking opportunities
-  if (benchmarking.benchmarking?.opportunity_analysis) {
+
+  if (benchmarking?.benchmarking?.opportunity_analysis) {
     benchmarking.benchmarking.opportunity_analysis.forEach(opp => {
       recommendations.push(`Focus on improving ${opp.metric} to gain competitive advantage`);
     });
   }
-  
-  return recommendations.slice(0, 5); // Return top 5 recommendations
+
+  return recommendations.slice(0, 5); // top 5
 }
+
 
 // GET test page for browser testing
 router.get('/test', async (req, res) => {

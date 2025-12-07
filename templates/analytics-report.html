@@ -20,31 +20,156 @@
                     {{metrics.visitorChange.value}}% vs previous period
                 </div>
             </div>
-            <div class="metric-card">
-                <div class="metric-label">Page Views</div>
-                <div class="metric-value">{{formatNumber metrics.pageViews}}</div>
-                <div class="metric-change {{#if metrics.pageViewChange.positive}}positive{{else}}negative{{/if}}">
-                    {{metrics.pageViewChange.value}}% vs previous period
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Avg. Session Duration</div>
-                <div class="metric-value">{{metrics.avgSessionDuration}}</div>
-                <div class="metric-change {{#if metrics.durationChange.positive}}positive{{else}}negative{{/if}}">
-                    {{metrics.durationChange.value}}% vs previous period
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Bounce Rate</div>
-                <div class="metric-value">{{metrics.bounceRate}}%</div>
-                <div class="metric-change {{#if metrics.bounceChange.positive}}negative{{else}}positive{{/if}}">
-                    {{metrics.bounceChange.value}}% vs previous period
-                </div>
-            </div>
+            <!-- ... other metric cards ... -->
         </div>
     </div>
 
-    <!-- Traffic Sources -->
+    <!-- =============================== -->
+    <!--        🧠 AI INSIGHTS BLOCK      -->
+    <!-- =============================== -->
+    {{#if has_ai_insights}}
+
+        <!-- 🔮 AI-Powered Forecast -->
+        {{#if has_predictive_analytics}}
+        <div class="section revolutionary-section" style="border: 2px solid #8e44ad; border-radius: 10px; padding: 20px; margin: 30px 0; background: linear-gradient(135deg, #f5f0ff 0%, #e8f4fd 100%);">
+            <h2 class="section-title" style="color: #8e44ad;">🔮 AI-Powered Forecast</h2>
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 6px rgba(142, 68, 173, 0.1);">
+                <h3 style="color: #8e44ad; margin-bottom: 15px;">Revenue Predictions (Next 30 Days)</h3>
+
+                {{#each ai_insights.predictions.revenue_forecast}}
+                <div style="margin: 10px 0; padding: 15px; background: #f8f5ff; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #8e44ad;">Period {{this.period}}:</strong>
+                        <div style="font-size: 24px; font-weight: bold; color: #2c5aa0;">${{this.predicted_revenue}}</div>
+                    </div>
+
+                    <!-- FIXED: Separate conditional blocks for style attributes -->
+                    {{#if this.trend_direction_is_up}}
+                    <span style="color: #27ae60; font-weight: bold; padding: 5px 15px; border-radius: 20px; background: rgba(39,174,96,0.1);">
+                        Up {{this.confidence}}% confidence
+                    </span>
+                    {{else}}
+                    <span style="color: #e74c3c; font-weight: bold; padding: 5px 15px; border-radius: 20px; background: rgba(231,76,60,0.1);">
+                        Down {{this.confidence}}% confidence
+                    </span>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ⚠️ AI Anomaly Detection -->
+        {{#if has_anomaly_detection}}
+        {{#if ai_insights.anomaly_detection.anomalies.length}}
+        <div class="section revolutionary-section" style="border: 2px solid #f39c12; border-radius: 10px; padding: 20px; margin: 30px 0; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa8 100%);">
+            <h2 class="section-title" style="color: #f39c12;">⚠️ AI Anomaly Detection</h2>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 6px rgba(243,156,18,0.1);">
+                <p><strong>AI detected {{ai_insights.anomaly_detection.anomalies.length}} unusual patterns requiring attention:</strong></p>
+
+                {{#each ai_insights.anomaly_detection.anomalies}}
+                <!-- FIXED: Complete div tags outside of conditionals -->
+                {{#if this.is_critical_severity}}
+                <div style="margin: 10px 0; padding: 12px; background: #ffeaea; border-radius: 6px; border-left: 4px solid #e74c3c;">
+                {{else}}
+                <div style="margin: 10px 0; padding: 12px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #f39c12;">
+                {{/if}}
+                    <strong>{{this.description}}</strong>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <span>Severity: 
+                            <!-- FIXED: No Handlebars inside style attribute -->
+                            {{#if this.is_critical_severity}}
+                            <strong style="color: #e74c3c;">{{this.severity}}</strong>
+                            {{else}}
+                            <strong style="color: #f39c12;">{{this.severity}}</strong>
+                            {{/if}}
+                        </span>
+                        <span>Z-score: {{this.z_score}}</span>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+        {{/if}}
+
+        <!-- 🏆 AI Performance Scorecard -->
+        {{#if performance_score}}
+        <div class="section revolutionary-section" style="border: 2px solid #27ae60; border-radius: 10px; padding: 20px; margin: 30px 0; background: linear-gradient(135deg, #d5f4e6 0%, #a8e6cf 100%);">
+            <h2 class="section-title" style="color: #27ae60;">🏆 AI Performance Scorecard</h2>
+
+            <div style="text-align: center; margin: 20px 0;">
+                <!-- FIXED: Complete color logic without breaking CSS -->
+                {{#if performance_score_high}}
+                <div style="font-size: 64px; font-weight: bold; color: #27ae60;">{{performance_score}}/10</div>
+                {{else if performance_score_medium}}
+                <div style="font-size: 64px; font-weight: bold; color: #f39c12;">{{performance_score}}/10</div>
+                {{else}}
+                <div style="font-size: 64px; font-weight: bold; color: #e74c3c;">{{performance_score}}/10</div>
+                {{/if}}
+
+                <div style="color: #666; margin-top: 10px; font-size: 16px;">Overall Performance Score</div>
+
+                <!-- Score breakdown -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 30px;">
+
+                    {{#if ai_insights.performance_scorecard.metric_scores.ga}}
+                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="font-size: 12px; color: #666;">GA Performance</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #2c5aa0;">
+                            {{ai_insights.performance_scorecard.metric_scores.ga.traffic_quality}}/10
+                        </div>
+                    </div>
+                    {{/if}}
+
+                    {{#if ai_insights.performance_scorecard.metric_scores.meta}}
+                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="font-size: 12px; color: #666;">Meta Ads</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #1877F2;">
+                            {{ai_insights.performance_scorecard.metric_scores.meta.ad_performance}}/10
+                        </div>
+                    </div>
+                    {{/if}}
+
+                </div>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- 📊 Competitive Benchmarking -->
+        {{#if has_competitive_benchmarks}}
+        <div class="section revolutionary-section" style="border: 2px solid #3498db; border-radius: 10px; padding: 20px; margin: 30px 0; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+            <h2 class="section-title" style="color: #3498db;">📊 Competitive Benchmarking</h2>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 6px rgba(52,152,219,0.1);">
+                <p>How you compare against industry standards:</p>
+
+                {{#each ai_insights.competitive_benchmarking.benchmarking.performance_gaps}}
+                <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <strong style="text-transform: capitalize;">{{@key}}</strong>
+                        {{#if this.is_above_average}}
+                        <span style="color: #27ae60;">✓ Above Average</span>
+                        {{else}}
+                        <span style="color: #e74c3c;">✗ Below Average</span>
+                        {{/if}}
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                        <span>You: {{this.current}}</span>
+                        <span>Industry: {{this.benchmark}}</span>
+                        <span>Gap: {{this.gap}}</span>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+    {{/if}} <!-- END AI SECTION -->
+
+    <!-- Rest of your existing template -->
     <div class="section">
         <h2 class="section-title">Traffic Sources</h2>
         <table class="data-table">
@@ -71,50 +196,22 @@
         </table>
     </div>
 
-    <!-- Top Pages -->
-    <div class="section">
-        <h2 class="section-title">Top Performing Pages</h2>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Page</th>
-                    <th>Page Views</th>
-                    <th>Unique Views</th>
-                    <th>Avg. Time</th>
-                    <th>Exit Rate</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{#each topPages}}
-                <tr>
-                    <td>{{this.page}}</td>
-                    <td>{{formatNumber this.pageViews}}</td>
-                    <td>{{formatNumber this.uniqueViews}}</td>
-                    <td>{{this.avgTime}}</td>
-                    <td>{{this.exitRate}}%</td>
-                </tr>
-                {{/each}}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Insights & Recommendations -->
-    <div class="section">
-        <h2 class="section-title">Insights & Recommendations</h2>
-        <div style="background: #fff9e6; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
-            <h3 style="color: #856404; margin-bottom: 15px;">Key Insights</h3>
+    <!-- AI Strategic Recommendations -->
+    {{#if has_ai_insights}}
+    {{#if ai_insights.strategic_recommendations}}
+    <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin: 40px 0;">
+        <h2 class="section-title" style="color: white;">🎯 AI-Powered Recommendations</h2>
+        <div style="background: rgba(255, 255, 255, 0.9); color: #333; padding: 20px; border-radius: 8px; margin: 15px 0;">
             <ul style="margin-left: 20px;">
-                {{#each insights}}
-                <li style="margin-bottom: 8px;">{{this}}</li>
-                {{/each}}
-            </ul>
-            
-            <h3 style="color: #856404; margin: 20px 0 15px 0;">Recommendations</h3>
-            <ul style="margin-left: 20px;">
-                {{#each recommendations}}
-                <li style="margin-bottom: 8px;">{{this}}</li>
+                {{#each ai_insights.strategic_recommendations}}
+                <li style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; border-left: 4px solid #764ba2;">
+                    {{this}}
+                </li>
                 {{/each}}
             </ul>
         </div>
     </div>
+    {{/if}}
+    {{/if}}
+
 {{/inline}}

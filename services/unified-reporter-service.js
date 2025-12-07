@@ -406,6 +406,200 @@ class UnifiedReporterService {
       return { success: false, error: error.message };
     }
   }
+
+  // File: services/unified-reporter-service.js - ENHANCED VERSION
+// Add these methods to your existing UnifiedReporterService class
+
+// 🆕 ENHANCED generateUnifiedReport method
+async generateUnifiedReport(tenantId, reportConfigId, options = {}) {
+  try {
+    console.log(`🌐 Generating unified report with revolutionary AI features for tenant: ${tenantId}`);
+    
+    // 1. Check report configuration for AI settings
+    const reportConfig = await this.getReportConfig(tenantId, reportConfigId);
+    const aiEnabled = reportConfig?.ai_insights_enabled || false;
+    
+    // 2. Fetch GA data
+    console.log('📊 Fetching Google Analytics data...');
+    const gaData = await gaOAuthService.fetchGA4Data(
+      tenantId, 
+      reportConfigId, 
+      options.dateRange || { startDate: '30daysAgo', endDate: 'today' }
+    );
+
+    // 3. Fetch Meta data if configured
+    let metaData = null;
+    try {
+      const { hasMeta } = await this.checkDataSourceConfig(tenantId, reportConfigId);
+      if (hasMeta) {
+        console.log('📱 Fetching Meta Ads data...');
+        metaData = await metaOAuthService.fetchMetaAdsData(
+          tenantId, 
+          reportConfigId,
+          { since: '30 days ago', until: 'today' }
+        );
+      }
+    } catch (metaError) {
+      console.log('⚠️ Meta data unavailable, proceeding with GA-only analysis');
+    }
+
+    // 4. 🧠 REVOLUTIONARY AI INSIGHTS GENERATION
+    let aiInsights = { success: false };
+    let additionalInsights = {};
+    
+    if (aiEnabled) {
+      console.log('🧠 Generating comprehensive AI insights...');
+      
+      // Generate predictive analytics
+      aiInsights = await aiInsightsService.generatePredictiveInsights(
+        gaData, 
+        metaData, 
+        options.predictionPeriods || 3
+      );
+      
+      // Generate additional insights based on report config
+      if (options.include_anomalies !== false) {
+        console.log('⚠️ Running anomaly detection...');
+        additionalInsights.anomaly_detection = await aiInsightsService.detectAnomalies(gaData);
+      }
+      
+      if (options.include_benchmarks !== false) {
+        console.log('📊 Generating competitive benchmarks...');
+        const industry = options.industry || 'digital_agency';
+        additionalInsights.competitive_benchmarking = 
+          await aiInsightsService.generateCompetitiveBenchmarking(gaData, industry);
+      }
+      
+      // Cross-platform intelligence
+      if (metaData) {
+        console.log('🌐 Correlating cross-platform data...');
+        additionalInsights.cross_platform_intelligence = 
+          await aiInsightsService.correlateMultiPlatformData(gaData, metaData);
+      }
+    }
+
+    // 5. Generate comprehensive report
+    const unifiedReport = {
+      success: true,
+      generated_at: new Date().toISOString(),
+      report_config_id: reportConfigId,
+      tenant_id: tenantId,
+      ai_enabled: aiEnabled,
+      data_sources: {
+        google_analytics: gaData,
+        meta_ads: metaData,
+        data_quality: {
+          ga: 'REAL_DATA',
+          meta: metaData?.data_quality || 'NOT_CONFIGURED'
+        }
+      },
+      cross_platform_analysis: this.crossPlatformCorrelation(gaData, metaData),
+      blended_metrics: this.calculateBlendedMetrics(gaData, metaData),
+      // 🧠 REVOLUTIONARY AI SECTION
+      ai_insights: {
+        success: aiInsights.success,
+        enabled: aiEnabled,
+        ...aiInsights,
+        ...additionalInsights,
+        strategic_recommendations: this.generateStrategicRecommendations(gaData, metaData, aiInsights)
+      },
+      performance_scorecard: this.generatePerformanceScorecard(gaData, metaData, aiInsights),
+      executive_summary: this.generateExecutiveSummary(gaData, metaData, aiInsights)
+    };
+
+    // 6. Store insights in database
+    if (aiInsights.success) {
+      await this.storeUnifiedInsights(tenantId, reportConfigId, unifiedReport);
+    }
+
+    console.log('✅ Unified report generated successfully with AI insights');
+    return unifiedReport;
+
+  } catch (error) {
+    console.error('❌ Unified report generation failed:', error);
+    return {
+      success: false,
+      error: error.message,
+      fallback_data: await this.generateFallbackReport(tenantId, reportConfigId)
+    };
+  }
+}
+
+// 🆕 NEW METHOD: Get report configuration with AI settings
+async getReportConfig(tenantId, reportConfigId) {
+  try {
+    const supabase = require('../lib/supabase');
+    const { data, error } = await supabase
+      .from('report_configs')
+      .select('ai_insights_enabled, sources, template_config')
+      .eq('id', reportConfigId)
+      .eq('tenant_id', tenantId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to fetch report config:', error);
+    return { ai_insights_enabled: false };
+  }
+}
+
+// 🆕 NEW METHOD: Store unified insights
+async storeUnifiedInsights(tenantId, reportConfigId, reportData) {
+  try {
+    const supabase = require('../lib/supabase');
+    
+    const { error } = await supabase
+      .from('ai_insights')
+      .insert({
+        tenant_id: tenantId,
+        report_config_id: reportConfigId,
+        insight_type: 'unified_report',
+        insight_text: JSON.stringify(reportData.ai_insights),
+        confidence_score: reportData.performance_scorecard?.overall_score || 0,
+        recommended_actions: reportData.ai_insights?.strategic_recommendations || [],
+        generated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('❌ Failed to store unified insights:', error);
+    } else {
+      console.log('✅ AI insights stored in database');
+    }
+  } catch (error) {
+    console.error('❌ Unified insights storage failed:', error);
+  }
+}
+
+// 🆕 NEW METHOD: Generate executive summary
+generateExecutiveSummary(gaData, metaData, aiInsights) {
+  const summaries = [];
+  
+  // Add GA insights
+  if (gaData.summary) {
+    summaries.push(`Total sessions: ${gaData.summary.totalSessions || 0}`);
+    summaries.push(`Engagement rate: ${gaData.summary.engagementRate || 0}%`);
+  }
+  
+  // Add AI insights
+  if (aiInsights.success) {
+    const revenueTrend = aiInsights.predictions?.revenue_forecast?.[0]?.trend_direction;
+    if (revenueTrend) {
+      summaries.push(`Revenue trend: ${revenueTrend === 'up' ? 'Growing' : 'Declining'}`);
+    }
+    
+    if (aiInsights.anomaly_detection?.anomalies?.length > 0) {
+      summaries.push(`${aiInsights.anomaly_detection.anomalies.length} anomalies detected`);
+    }
+  }
+  
+  // Add cross-platform insights
+  if (metaData) {
+    summaries.push(`Meta ad spend: $${metaData.key_metrics?.total_spend || 0}`);
+  }
+  
+  return summaries.length > 0 ? summaries : ['Performance analysis completed successfully'];
+}
 }
 
 module.exports = new UnifiedReporterService();
