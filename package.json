@@ -7,10 +7,16 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "npm install"
+    "build": "npm install",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "migrate": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.81.1",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
@@ -25,7 +31,24 @@
     "resend": "^2.1.0",
     "serverless-http": "^3.2.0"
   },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "nock": "^13.5.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "@types/jest": "^29.5.11",
+    "nodemon": "^3.0.2"
+  },
   "engines": {
     "node": "18.x"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/"
+    ],
+    "testTimeout": 10000
   }
 }

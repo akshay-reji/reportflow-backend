@@ -8,7 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Import routes
+// In server.js - Update the payment routes mounting section:
+
+// ... existing imports ...
+
 const schedulerRoutes = require('./routes/scheduler');
 const reporterRoutes = require('./routes/reporter');
 const emailRoutes = require('./routes/email');
@@ -19,8 +22,9 @@ const unifiedReporterRoutes = require('./routes/unified-reporter');
 const paymentRoutes = require('./routes/payment');
 const usageTracking = require('./middleware/usage-limits');
 
+// ... existing middleware ...
 
-// ✅ CRITICAL FIX: Use routes
+// Import routes
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/reporter', reporterRoutes);
 app.use('/api/email', emailRoutes);
@@ -28,10 +32,18 @@ app.use('/api/oauth/ga', oauthGaRoutes);
 app.use('/api/ai-insights', aiInsightsRoutes);
 app.use('/api/oauth/meta', oauthMetaRoutes);
 app.use('/api/unified-reporter', unifiedReporterRoutes);
-app.use('/api/payment', paymentRoutes);
-//app.use('/api/reporter/generate', usageTracking.checkUsage.bind(usageTracking));
-//app.use('/api/reporter/generate', usageTracking.incrementUsage.bind(usageTracking));
 
+// 🚨 CRITICAL FIX: Mount payment webhook with raw body parsing
+// Webhook needs raw body for signature verification
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }), paymentRoutes);
+// Other payment routes use JSON parsing
+app.use('/api/payment', paymentRoutes);
+
+// ✅ FIX: Enable usage tracking middleware on reporter endpoints
+app.use('/api/reporter/generate', usageTracking.checkUsage.bind(usageTracking));
+app.use('/api/reporter/generate', usageTracking.incrementUsage.bind(usageTracking));
+
+// ... rest of the server.js remains the same ...
 
 
 // Health check endpoint

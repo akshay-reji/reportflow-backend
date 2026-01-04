@@ -1,51 +1,22 @@
 [build]
-  command = "npm install"
-  publish = "."
+  command = "npm run build"
+  functions = "netlify/functions"
+  publish = "public"
 
 [build.environment]
-  NODE_ENV = "production"
+  NODE_VERSION = "18"
 
 [functions]
-  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
-# API routes - redirect to our server function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/server/:splat"
   status = 200
 
-# Health check specific route
-[[redirects]]
-  from = "/api/health"
-  to = "/.netlify/functions/server/api/health"
-  status = 200
-
-# Scheduler routes
-[[redirects]]
-  from = "/api/scheduler/*"
-  to = "/.netlify/functions/server/api/scheduler/:splat"
-  status = 200
-
-# Reporter routes
-[[redirects]]
-  from = "/api/reporter/*"
-  to = "/.netlify/functions/server/api/reporter/:splat"
-  status = 200
-
-# Email routes
-[[redirects]]
-  from = "/api/email/*"
-  to = "/.netlify/functions/server/api/email/:splat"
-  status = 200
-
-# 🆕 CRITICAL: ADD THIS ONE LINE FOR OAUTH GA
-[[redirects]]
-  from = "/api/oauth/ga/*"
-  to = "/.netlify/functions/server/api/oauth/ga/:splat"
-  status = 200
-
-# Debug routes
-[[redirects]]
-  from = "/api/debug-routes"
-  to = "/.netlify/functions/server/api/debug-routes"
-  status = 200
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, x-tenant-id, x-dodo-signature"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
