@@ -1,6 +1,5 @@
 // middleware/usage-limits.js
-const supabase = require('../lib/supabase').getClient();
-
+const supabase = require('../lib/supabase'); // Direct import
 /**
  * Middleware to check if a tenant has exceeded their plan limits.
  * Denies the request with HTTP 429 if the limit is exceeded.

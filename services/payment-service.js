@@ -1,6 +1,6 @@
 // services/payment-service.js - ENHANCED VERSION
 const axios = require('axios');
-const supabase = require('../lib/supabase');
+const axiosRetry = require('axios-retry').default;  // ← Access .default
 
 const DODO_BASE = (process.env.DODO_API_URL || 'https://test.dodopayments.com').replace(/\/+$/, '');
 const API_KEY = process.env.DODO_API_KEY;
@@ -9,9 +9,6 @@ const DEFAULT_TIMEOUT_MS = 10000;
 
 // Create axios instance with retry configuration
 const createAxiosInstance = () => {
-
-  const axios = require('axios');
-  const axiosRetry = require('axios-retry');
 
   const instance = axios.create({
     timeout: DEFAULT_TIMEOUT_MS,
