@@ -4,6 +4,8 @@ const router = express.Router();
 const unifiedReporterService = require('../services/unified-reporter-service');
 const supabase = require('../lib/supabase');
 const crypto = require('crypto');
+const { checkUsage, incrementUsage } = require('../middleware/usage-limits');
+
 
 // Verify webhook secret middleware
 const verifyWebhook = (req, res, next) => {
@@ -25,8 +27,8 @@ const verifyWebhook = (req, res, next) => {
   next();
 };
 
-// 🎯 GENERATE UNIFIED REPORT
-router.post('/generate', verifyWebhook, async (req, res) => {
+// ADD checkUsage middleware HERE, after verifyWebhook
+router.post('/generate', verifyWebhook, checkUsage, async (req, res) => {
   try {
     const { tenant_id, report_config_id, options } = req.body;
     
@@ -47,7 +49,12 @@ router.post('/generate', verifyWebhook, async (req, res) => {
 
     // Store the unified report insights in database
     if (report.success) {
+      // Assuming storeUnifiedInsights is a method in this file or service
       await this.storeUnifiedInsights(tenant_id, report_config_id, report);
+      
+      // === CRITICAL: INCREMENT USAGE AFTER SUCCESS ===
+      await incrementUsage(tenant_id, 'reports', 1);
+      console.log(`📈 Incremented usage for unified report, tenant: ${tenant_id}`);
     }
 
     res.json({
@@ -58,6 +65,15 @@ router.post('/generate', verifyWebhook, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Unified report generation failed:', error);
+    
+    // Special handling for usage limit errors thrown by checkUsage
+    if (error.message?.includes('Plan limit exceeded') || error.statusCode === 429) {
+      return res.status(429).json({
+        success: false,
+        error: error.message || 'Monthly report limit exceeded'
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
       error: error.message 

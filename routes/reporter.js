@@ -3,6 +3,8 @@ const router = express.Router();
 const reporterService = require('../services/reporter-service');
 const supabase = require('../lib/supabase');
 const crypto = require('crypto');
+const { checkUsage, incrementUsage } = require('../middleware/usage-limits');
+
 
 // Verify webhook secret middleware
 const verifyWebhook = (req, res, next) => {
@@ -25,7 +27,8 @@ const verifyWebhook = (req, res, next) => {
 };
 
 // Generate and send report (protected)
-router.post('/generate', verifyWebhook, async (req, res) => {
+// ADD checkUsage middleware HERE, after verifyWebhook
+router.post('/generate', verifyWebhook, checkUsage, async (req, res) => {
     try {
         const { report_config_id, tenant_id } = req.body;
         
@@ -38,15 +41,34 @@ router.post('/generate', verifyWebhook, async (req, res) => {
 
         console.log(`🚀 Reporter triggered for config: ${report_config_id}`);
         
+        // Your existing service call
         const result = await reporterService.generateAndSendReport(report_config_id, tenant_id);
         
+        // === CRITICAL: INCREMENT USAGE AFTER SUCCESS ===
+        // Only increment if the report was successfully generated and sent
+        if (result.success === true) {
+            await incrementUsage(tenant_id, 'reports', 1);
+            console.log(`📈 Incremented usage for tenant: ${tenant_id}`);
+        }
+        // ==============================================
+        
+        // Return the result from the service
         res.json(result);
 
     } catch (error) {
         console.error('Reporter route error:', error);
+        
+        // Special handling for usage limit errors thrown by checkUsage
+        if (error.message?.includes('Plan limit exceeded') || error.statusCode === 429) {
+            return res.status(429).json({
+                success: false,
+                error: error.message || 'Monthly report limit exceeded'
+            });
+        }
+        
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: 'Failed to generate report' 
         });
     }
 });
