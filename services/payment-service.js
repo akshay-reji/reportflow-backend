@@ -9,11 +9,28 @@ const DEFAULT_TIMEOUT_MS = 10000;
 
 // Create axios instance with retry configuration
 const createAxiosInstance = () => {
+
+  const axios = require('axios');
+  const axiosRetry = require('axios-retry');
+
   const instance = axios.create({
     timeout: DEFAULT_TIMEOUT_MS,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${API_KEY}`
+    }
+  });
+
+  axiosRetry(instance, {
+    retries: 3,
+    retryDelay: axiosRetry.exponentialDelay, // Uses formula: 1000 * 2^attempt
+    retryCondition: (error) => {
+      // Retry on network errors, timeouts, or 5xx server errors
+      return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
+             (error.response && error.response.status >= 500);
+    },
+    onRetry: (retryCount, error, requestConfig) => {
+      console.log(`💰 Dodo API retry ${retryCount} for ${requestConfig.url}: ${error.message}`);
     }
   });
 
