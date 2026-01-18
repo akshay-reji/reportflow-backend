@@ -17,7 +17,7 @@ class ReporterService {
                 throw new Error('Report configuration not found');
             }
 
-            // 2. Generate PDF report
+            // 2. Generate PDF report (NOW WITH TEMPLATE SUPPORT!)
             console.log('🔄 Generating PDF report...');
             const { pdfBuffer, fileName } = await this.generatePDFReport(reportConfig);
             
@@ -59,80 +59,128 @@ class ReporterService {
     }
 
     async generatePDFReport(reportConfig) {
-    const periodStart = new Date();
-    periodStart.setDate(periodStart.getDate() - 30);
-    const periodEnd = new Date();
+        const periodStart = new Date();
+        periodStart.setDate(periodStart.getDate() - 30);
+        const periodEnd = new Date();
 
-    console.log('🌐 Generating PDF with revolutionary AI features...');
+        console.log('🌐 Generating PDF with revolutionary AI features...');
 
-    // 🆕 Get report configuration for AI settings
-    const aiEnabled = !!reportConfig.ai_insights_enabled;
+        // 🆕 Get report configuration for AI settings
+        const aiEnabled = !!reportConfig.ai_insights_enabled;
 
-    // Use the ENHANCED unified reporter with AI insights
-    const unifiedReport = await unifiedReporterService.generateUnifiedReport(
-        reportConfig.tenant_id,
-        reportConfig.id,
-        {
-            dateRange: { startDate: '30daysAgo', endDate: 'today' },
-            predictionPeriods: 3,
-            include_anomalies: aiEnabled,
-            include_benchmarks: aiEnabled,
-            industry: reportConfig.industry || 'digital_agency'
-        }
-    );
+        // Use the ENHANCED unified reporter with AI insights
+        const unifiedReport = await unifiedReporterService.generateUnifiedReport(
+            reportConfig.tenant_id,
+            reportConfig.id,
+            {
+                dateRange: { startDate: '30daysAgo', endDate: 'today' },
+                predictionPeriods: 3,
+                include_anomalies: aiEnabled,
+                include_benchmarks: aiEnabled,
+                industry: reportConfig.industry || 'digital_agency'
+            }
+        );
 
-    // Generate template data with enhanced AI insights
-    const templateData = pdfService.generateMockAnalyticsData(
-        reportConfig.clients.client_name,
-        periodStart.toLocaleDateString(),
-        periodEnd.toLocaleDateString()
-    );
+        // ✅ CRITICAL: GET TEMPLATE FOR TENANT
+        const template = await this.getTemplateForTenant(
+            reportConfig.tenant_id, 
+            reportConfig.template_id
+        );
 
-    // Add agency branding
-    templateData.agencyName = reportConfig.tenants.company_name;
-    templateData.agencyLogo = reportConfig.tenants.logo_path;
-    templateData.clientLogo = reportConfig.clients.logo_path;
-
-    // 🧠 ADD REVOLUTIONARY AI DATA TO TEMPLATE
-    templateData.unified_report = unifiedReport || {};
-    templateData.has_ai_insights = !!(unifiedReport && unifiedReport.ai_insights && unifiedReport.ai_insights.success);
-    templateData.ai_insights = unifiedReport.ai_insights || {};
-
-    // ✅ Template flags for conditional rendering (guarded)
-    templateData.has_predictive_analytics = Array.isArray(unifiedReport.ai_insights?.predictions?.revenue_forecast)
-        && unifiedReport.ai_insights.predictions.revenue_forecast.length > 0;
-
-    templateData.has_anomaly_detection = Array.isArray(unifiedReport.ai_insights?.anomaly_detection?.anomalies)
-        && unifiedReport.ai_insights.anomaly_detection.anomalies.length > 0;
-
-    templateData.has_competitive_benchmarks = !!(unifiedReport.ai_insights?.competitive_benchmarks || unifiedReport.competitive_benchmarks);
-
-    templateData.performance_score = unifiedReport.performance_scorecard?.overall_score ?? 0;
-
-    // ✅ Template flags for score colors
-    if (typeof templateData.performance_score === 'number') {
-        templateData.performance_score_high = templateData.performance_score >= 8;
-        templateData.performance_score_medium = templateData.performance_score >= 6 && templateData.performance_score < 8;
-        templateData.performance_score_low = templateData.performance_score < 6;
-    }
-
-    // Add cross-platform metrics (guarded)
-    if (unifiedReport.blended_metrics) {
-        templateData.cross_platform = {
-            blended_roas: unifiedReport.cross_platform_analysis?.blended_roas?.roas_value ?? null,
-            total_revenue: unifiedReport.blended_metrics?.total_revenue ?? 0,
-            total_ad_spend: unifiedReport.blended_metrics?.total_ad_spend ?? 0
+        // ✅ USE TEMPLATE CONTENT INSTEAD OF FIXED TEMPLATE
+        const templateData = {
+            // Generate mock data
+            ...pdfService.generateMockAnalyticsData(
+                reportConfig.clients.client_name,
+                periodStart.toLocaleDateString(),
+                periodEnd.toLocaleDateString()
+            ),
+            // Template HTML content
+            template_html: template.html_content,
+            template_css: template.css_content,
+            // Agency branding
+            agencyName: reportConfig.tenants.company_name,
+            agencyLogo: reportConfig.tenants.logo_path,
+            clientLogo: reportConfig.clients.logo_path,
+            // Template metadata
+            template_name: template.name,
+            is_fallback_template: template.is_fallback || false
         };
+
+        // 🧠 ADD REVOLUTIONARY AI DATA TO TEMPLATE
+        templateData.unified_report = unifiedReport || {};
+        templateData.has_ai_insights = !!(unifiedReport && unifiedReport.ai_insights && unifiedReport.ai_insights.success);
+        templateData.ai_insights = unifiedReport.ai_insights || {};
+
+        // ✅ Template flags for conditional rendering (guarded)
+        templateData.has_predictive_analytics = Array.isArray(unifiedReport.ai_insights?.predictions?.revenue_forecast)
+            && unifiedReport.ai_insights.predictions.revenue_forecast.length > 0;
+
+        templateData.has_anomaly_detection = Array.isArray(unifiedReport.ai_insights?.anomaly_detection?.anomalies)
+            && unifiedReport.ai_insights.anomaly_detection.anomalies.length > 0;
+
+        templateData.has_competitive_benchmarks = !!(unifiedReport.ai_insights?.competitive_benchmarks || unifiedReport.competitive_benchmarks);
+
+        templateData.performance_score = unifiedReport.performance_scorecard?.overall_score ?? 0;
+
+        // ✅ Template flags for score colors
+        if (typeof templateData.performance_score === 'number') {
+            templateData.performance_score_high = templateData.performance_score >= 8;
+            templateData.performance_score_medium = templateData.performance_score >= 6 && templateData.performance_score < 8;
+            templateData.performance_score_low = templateData.performance_score < 6;
+        }
+
+        // Add cross-platform metrics (guarded)
+        if (unifiedReport.blended_metrics) {
+            templateData.cross_platform = {
+                blended_roas: unifiedReport.cross_platform_analysis?.blended_roas?.roas_value ?? null,
+                total_revenue: unifiedReport.blended_metrics?.total_revenue ?? 0,
+                total_ad_spend: unifiedReport.blended_metrics?.total_ad_spend ?? 0
+            };
+        }
+
+        // ✅ CRITICAL: USE NEW PDF GENERATION METHOD WITH TEMPLATES
+        const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
+
+        const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
+
+        return { pdfBuffer, fileName };
     }
 
-    // Final rendering
-    const pdfBuffer = await pdfService.generateProfessionalPDF(templateData);
+    // ✅ NEW METHOD: Get template for tenant
+    async getTemplateForTenant(tenantId, templateId = null) {
+        try {
+            let query = supabase
+                .from('tenant_templates')
+                .select('html_content, css_content, name')
+                .or(`tenant_id.eq.${tenantId},is_system_template.eq.true`)
+                .eq('is_active', true)
+                .order('is_system_template', { ascending: true }); // Prefer custom over system
 
-    const fileName = `reports/${reportConfig.tenant_id}/${reportConfig.id}-${Date.now()}.pdf`;
+            if (templateId) {
+                query = query.or(`id.eq.${templateId},and(is_system_template.eq.true,id.eq.${templateId})`);
+            }
 
-    return { pdfBuffer, fileName };
-}
+            const { data: template, error } = await query.limit(1).single();
 
+            if (error || !template) {
+                // Fallback to default file template
+                const fs = require('fs').promises;
+                const html = await fs.readFile('templates/analytics-report.html', 'utf8');
+                return {
+                    html_content: html,
+                    css_content: null,
+                    name: 'Standard Template',
+                    is_fallback: true
+                };
+            }
+
+            return template;
+        } catch (error) {
+            console.error('Template fetch error:', error);
+            throw new Error('Failed to load template');
+        }
+    }
 
     async getReportConfig(reportConfigId, tenantId) {
         const { data, error } = await supabase
@@ -159,10 +207,6 @@ class ReporterService {
         if (error) throw error;
         return data;
     }
-// Add to your reporter-service.js, in the generatePDFReport function
-
-// File: services/reporter-service.js - UPDATED generatePDFReport method
-
 
     async uploadToStorage(pdfBuffer, fileName, tenantId) {
         const { data, error } = await supabase.storage
@@ -328,18 +372,6 @@ class ReporterService {
 
         return reportData;
     }
-
-    // In reporter-service.js - Add timeout awareness
-        async generateAndSendReport(reportConfigId, tenantId) {
-        const startTime = Date.now();
-        const MAX_DURATION = 55000; // 55 seconds for safety
-        
-        // Check timeout periodically in loops
-        if (Date.now() - startTime > MAX_DURATION) {
-            throw new Error('Operation timed out in serverless environment');
-        }
-        // ... rest of your code
-        }
 }
 
 module.exports = new ReporterService();

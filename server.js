@@ -21,6 +21,7 @@ const oauthMetaRoutes = require('./routes/oauth-meta');
 const unifiedReporterRoutes = require('./routes/unified-reporter');
 const paymentRoutes = require('./routes/payment');
 const usageTracking = require('./middleware/usage-limits');
+const templateRoutes = require('./routes/templates');
 
 // ... existing middleware ...
 
@@ -42,6 +43,7 @@ app.use('/api/payment', paymentRoutes);
 // ✅ FIX: Enable usage tracking middleware on reporter endpoints
 app.use('/api/reporter/generate', usageTracking.checkUsage.bind(usageTracking));
 app.use('/api/reporter/generate', usageTracking.incrementUsage.bind(usageTracking));
+app.use('/api/templates', authenticateToken, templateRoutes); // Add your auth middleware
 
 // ... rest of the server.js remains the same ...
 

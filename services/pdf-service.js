@@ -14,26 +14,23 @@ class PDFService {
         this.templateCache = new Map();
     }
 
-    async generateProfessionalPDF(templateData) {
-        let browser = null;
-        try {
-            // Load and compile template
-            const htmlContent = await this.compileTemplate('analytics-report', templateData);
-            
-            // For now, return mock PDF to avoid Puppeteer issues in Netlify
-            console.log('📊 PDF Generation: Using mock PDF for Netlify deployment');
-            
-            // Return a simple PDF-like buffer (placeholder)
-            const mockPDF = Buffer.from('%PDF-1.4 Mock PDF - Real PDF generation to be implemented in production');
-            
-            return mockPDF;
-
-        } catch (error) {
-            console.error('PDF generation failed, returning mock PDF:', error);
-            // Return mock PDF as fallback
-            return Buffer.from('%PDF-1.4 Mock PDF - Generation failed');
-        }
+    generateProfessionalPDF(templateData) {
+    // 检查是否有自定义模板内容
+    if (templateData.template_html) {
+        // 使用自定义模板
+        return this.generatePDFFromTemplate(
+            templateData.template_html,
+            templateData,
+            templateData.template_css
+        );
+    } else {
+        // 使用默认模板
+        return this.generatePDFFromFile(
+            'templates/analytics-report.html',
+            templateData
+        );
     }
+}
 
     async compileTemplate(templateName, data) {
         // Check cache first
