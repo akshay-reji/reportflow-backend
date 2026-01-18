@@ -46,7 +46,15 @@ router.post('/create-customer', validateTenant, async (req, res) => {
     
     const result = await paymentService.createCustomer(req.tenantId, customer);
     
-    res.json(result);
+   if (result.success) {
+    res.status(201).json(result); // ✅ Tests expect 201 on success
+} else {
+    // Map the service error status to HTTP status
+    const statusCode = result.status === 400 ? 400 : 
+                      result.status === 401 ? 401 : 
+                      result.status === 404 ? 404 : 422; // Default to 422
+    res.status(statusCode).json(result);
+}
   } catch (err) {
     console.error('❌ create-customer error:', err.message);
     
@@ -97,7 +105,15 @@ router.post('/create-subscription', validateTenant, async (req, res) => {
       return res.status(400).json(result);
     }
     
-    res.json(result);
+    if (result.success) {
+    res.status(201).json(result); // ✅ Tests expect 201 on success
+} else {
+    // Map the service error status to HTTP status
+    const statusCode = result.status === 400 ? 400 : 
+                      result.status === 401 ? 401 : 
+                      result.status === 404 ? 404 : 422; // Default to 422
+    res.status(statusCode).json(result);
+}
   } catch (err) {
     console.error('❌ create-subscription error:', err.message);
     
