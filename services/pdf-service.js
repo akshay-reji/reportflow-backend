@@ -9,146 +9,129 @@ handlebars.registerHelper('formatNumber', function(number) {
     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 });
 
+handlebars.registerHelper('if_eq', function(a, b, opts) {
+    if (a === b) return opts.fn(this);
+    return opts.inverse(this);
+});
+
 class PDFService {
     constructor() {
         this.templateCache = new Map();
     }
 
-    generateProfessionalPDF(templateData) {
-    // 检查是否有自定义模板内容
-    if (templateData.template_html) {
-        // 使用自定义模板
-        return this.generatePDFFromTemplate(
-            templateData.template_html,
-            templateData,
-            templateData.template_css
-        );
-    } else {
-        // 使用默认模板
-        return this.generatePDFFromFile(
-            'templates/analytics-report.html',
-            templateData
-        );
-    }
-}
-
-    async compileTemplate(templateName, data) {
-        // Check cache first
-        if (this.templateCache.has(templateName)) {
-            const template = this.templateCache.get(templateName);
-            return template(data);
-        }
-
+    async generateProfessionalPDF(templateData) {
         try {
-            // ✅ FIX: Use process.cwd() for Netlify Functions compatibility
-            const projectRoot = process.cwd();
-            console.log(`🔍 Project root: ${projectRoot}`);
-            
-            // Try multiple possible template locations for Netlify
-            const possibleBasePaths = [
-                path.join(projectRoot, 'templates', 'base.html'),
-                path.join(projectRoot, 'src', 'templates', 'base.html'),
-                path.join(__dirname, '..', 'templates', 'base.html'),
-                path.join(__dirname, '..', '..', 'templates', 'base.html')
-            ];
-
-            let baseTemplate = '';
-            let baseTemplatePath = '';
-
-            // Find the base template
-            for (const basePath of possibleBasePaths) {
-                try {
-                    baseTemplate = await fs.readFile(basePath, 'utf8');
-                    baseTemplatePath = basePath;
-                    console.log(`✅ Found base template at: ${basePath}`);
-                    break;
-                } catch (e) {
-                    // Continue to next path
-                }
+            // Check if we have custom template content
+            if (templateData.template_html) {
+                // Use custom template
+                return await this.generatePDFFromHTML(
+                    templateData.template_html,
+                    templateData,
+                    templateData.template_css
+                );
+            } else {
+                // Use default template file
+                const defaultTemplate = await fs.readFile(
+                    'templates/analytics-report.html', 
+                    'utf8'
+                );
+                return await this.generatePDFFromHTML(
+                    defaultTemplate,
+                    templateData
+                );
             }
-
-            if (!baseTemplate) {
-                throw new Error(`Base template not found in any location: ${possibleBasePaths.join(', ')}`);
-            }
-
-            // Try multiple possible specific template locations
-            const possibleSpecificPaths = [
-                path.join(projectRoot, 'templates', `${templateName}.html`),
-                path.join(projectRoot, 'src', 'templates', `${templateName}.html`),
-                path.join(__dirname, '..', 'templates', `${templateName}.html`),
-                path.join(__dirname, '..', '..', 'templates', `${templateName}.html`)
-            ];
-
-            let specificTemplate = '';
-            let specificTemplatePath = '';
-
-            // Find the specific template
-            for (const specificPath of possibleSpecificPaths) {
-                try {
-                    specificTemplate = await fs.readFile(specificPath, 'utf8');
-                    specificTemplatePath = specificPath;
-                    console.log(`✅ Found ${templateName} template at: ${specificPath}`);
-                    break;
-                } catch (e) {
-                    // Continue to next path
-                }
-            }
-
-            if (!specificTemplate) {
-                throw new Error(`${templateName} template not found in any location`);
-            }
-
-            // Combine templates
-            const fullTemplate = baseTemplate.replace('{{{content}}}', specificTemplate);
-            
-            // Compile and cache
-            const template = handlebars.compile(fullTemplate);
-            this.templateCache.set(templateName, template);
-            
-            return template(data);
         } catch (error) {
-            console.error('❌ Template compilation failed, using fallback template:', error);
+            console.error('PDF generation failed:', error);
+            throw new Error(`Failed to generate PDF: ${error.message}`);
+        }
+    }
+
+    async generatePDFFromHTML(htmlContent, data, customCSS = null) {
+        let browser = null;
+        try {
+            // Compile HTML template with data
+            const template = handlebars.compile(htmlContent);
+            const finalHTML = template(data);
             
-            // Fallback template if files can't be found
-            const fallbackTemplate = `
+            // Combine with CSS
+            const fullHTML = this.wrapHTML(finalHTML, customCSS);
+            
+            // Launch browser (compatible with Netlify Functions)
+            const executablePath = await chromium.executablePath;
+            browser = await chromium.puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath,
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
+            });
+
+            const page = await browser.newPage();
+            
+            // Set HTML content
+            await page.setContent(fullHTML, {
+                waitUntil: ['networkidle0', 'load', 'domcontentloaded']
+            });
+
+            // Generate PDF
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '0.5in',
+                    right: '0.5in',
+                    bottom: '0.5in',
+                    left: '0.5in'
+                },
+                displayHeaderFooter: true,
+                headerTemplate: '<div style="font-size: 8px; color: #666; padding: 10px;">ReportFlow Analytics Report</div>',
+                footerTemplate: '<div style="font-size: 8px; color: #666; padding: 10px; width: 100%; text-align: center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span> • Generated on ' + new Date().toLocaleDateString() + '</div>'
+            });
+
+            await browser.close();
+            return pdfBuffer;
+
+        } catch (error) {
+            if (browser) await browser.close();
+            console.error('PDF generation error:', error);
+            throw error;
+        }
+    }
+
+    wrapHTML(content, customCSS = null) {
+        const baseCSS = `
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+            .container { max-width: 100%; padding: 20px; }
+            .header { background: linear-gradient(135deg, #2c5aa0 0%, #1e3a8a 100%); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
+            .section { margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2c5aa0; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th { background: #2c5aa0; color: white; padding: 12px; text-align: left; }
+            td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+            .metric-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 10px 0; }
+            .positive { color: #10b981; }
+            .negative { color: #ef4444; }
+            .ai-insight { background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 15px; margin: 10px 0; border-radius: 4px; }
+            @media print { .no-print { display: none; } }
+        `;
+
+        return `
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .header { background: #2c5aa0; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; }
-        .footer { text-align: center; margin-top: 40px; color: #666; }
-    </style>
+    <meta charset="UTF-8">
+    <title>Analytics Report</title>
+    <style>${baseCSS}</style>
+    ${customCSS ? `<style>${customCSS}</style>` : ''}
 </head>
 <body>
-    <div class="header">
-        <h1>${data.reportTitle || 'Analytics Report'}</h1>
-        <p>Prepared for ${data.clientName || 'Client'} by ${data.agencyName || 'Agency'}</p>
-    </div>
-    <div class="content">
-        <h2>Executive Summary</h2>
-        <p>Report period: ${data.periodStart || 'N/A'} to ${data.periodEnd || 'N/A'}</p>
-        <p>This is a fallback report template. The main templates could not be loaded.</p>
-        
-        <h2>Key Metrics</h2>
-        <p>Total Visitors: ${data.metrics?.totalVisitors || 'N/A'}</p>
-        <p>Page Views: ${data.metrics?.pageViews || 'N/A'}</p>
-        
-        <p><em>Note: This is a simplified fallback template for testing.</em></p>
-    </div>
-    <div class="footer">
-        <p>Generated by ReportFlow on ${new Date().toLocaleDateString()}</p>
+    <div class="container">
+        ${content}
     </div>
 </body>
 </html>`;
-            
-            const template = handlebars.compile(fallbackTemplate);
-            return template(data);
-        }
     }
 
-    // Mock data generator for testing
+    // Keep your existing mock data generator
     generateMockAnalyticsData(clientName, periodStart, periodEnd) {
         return {
             reportTitle: 'Website Analytics Report',
