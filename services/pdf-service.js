@@ -14,6 +14,25 @@ handlebars.registerHelper('if_eq', function(a, b, opts) {
     return opts.inverse(this);
 });
 
+handlebars.registerHelper('formatDate', function(date) {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+});
+
+handlebars.registerHelper('percentage', function(number) {
+    if (!number) return '0%';
+    return (number * 100).toFixed(1) + '%';
+});
+
+handlebars.registerHelper('ifEquals', function(arg1, arg2, options) {
+    return (arg1 === arg2) ? options.fn(this) : options.inverse(this);
+});
+
 class PDFService {
     constructor() {
         this.templateCache = new Map();
