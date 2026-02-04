@@ -1,0 +1,61 @@
+/* Dark Mode Theme - For tech-savvy clients */
+:root {
+    --dark-bg: #0f172a;
+    --dark-card: #1e293b;
+    --dark-text: #e2e8f0;
+    --dark-accent: #3b82f6;
+    --dark-success: #10b981;
+    --dark-warning: #f59e0b;
+}
+
+body {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    background: var(--dark-bg);
+    color: var(--dark-text);
+    padding: 30px;
+}
+
+.metric-panel {
+    background: var(--dark-card);
+    border-radius: 16px;
+    padding: 25px;
+    margin: 20px 0;
+    border: 1px solid #334155;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.glow-effect {
+    position: relative;
+}
+
+.glow-effect::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: 18px;
+    z-index: -1;
+    opacity: 0.3;
+    filter: blur(8px);
+}
+
+.data-point {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    margin: 5px;
+}
+
+.ai-insight-card {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    border-left: 4px solid var(--dark-accent);
+    padding: 20px;
+    margin: 15px 0;
+    border-radius: 0 8px 8px 0;
+}

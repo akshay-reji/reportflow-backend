@@ -1,0 +1,72 @@
+/* Minimal Theme - Clean, spacious, focused */
+:root {
+    --minimal-primary: #2c3e50;
+    --minimal-secondary: #7f8c8d;
+    --minimal-accent: #3498db;
+    --minimal-bg: #ffffff;
+    --minimal-card: #f9f9f9;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--minimal-primary);
+    background: var(--minimal-bg);
+    line-height: 1.8;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 60px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.report-title {
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: var(--minimal-primary);
+    margin-bottom: 10px;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin: 40px 0;
+}
+
+.metric-tile {
+    background: var(--minimal-card);
+    border-radius: 12px;
+    padding: 30px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-tile:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+.metric-value {
+    font-size: 3rem;
+    font-weight: 300;
+    color: var(--minimal-accent);
+    line-height: 1;
+    margin: 15px 0;
+}
+
+.trend-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-left: 10px;
+}
+
+.trend-up { background: #d4edda; color: #155724; }
+.trend-down { background: #f8d7da; color: #721c24; }

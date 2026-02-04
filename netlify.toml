@@ -1,22 +1,32 @@
+# netlify.toml
 [build]
-  command = "npm run build"
+  command = "npm install"
   functions = "netlify/functions"
   publish = "public"
 
 [build.environment]
   NODE_VERSION = "18"
+  # SUPABASE_URL, etc. will be set in Netlify UI
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["@sparticuz/chromium", "puppeteer-core"]
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/server/:splat"
-  status = 200
+[[functions]]
+  path = "netlify/functions/server.js"
+  node_bundler = "esbuild"
+  timeout = 30  # PDF generation needs time
+  memory = 1024 # Chromium needs memory
+
+[dev]
+  port = 3001
+  target = "netlify"
+  framework = "#custom"
+  publish = "public"
 
 [[headers]]
-  for = "/api/*"
+  for = "/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, x-tenant-id, x-dodo-signature"
+    Access-Control-Allow-Headers = "Content-Type, x-tenant-id, x-api-key, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"

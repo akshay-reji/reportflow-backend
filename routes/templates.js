@@ -338,4 +338,133 @@ router.put('/:id/activate', async (req, res) => {
   }
 });
 
+// GET /api/templates/variables - Document available template variables
+router.get('/variables', (req, res) => {
+  res.json({
+    variables: {
+      // Basic report info
+      client_name: "String - Client's company name",
+      period: "String - Report period (e.g., 'Q1 2024')",
+      generated_at: "Date - ISO string, use {{formatDate generated_at}}",
+      
+      // Metrics array (loop with {{#each metrics}})
+      metrics: [
+        {
+          name: "String - Metric name",
+          value: "Number/String - Metric value",
+          change: "Number - Percentage change",
+          positive: "Boolean - Whether change is positive"
+        }
+      ],
+      
+      // AI Insights
+      insights: "Array - AI-generated insights strings",
+      recommendations: "Array - AI-generated recommendations",
+      
+      // Advanced data
+      traffic_sources: "Array - Traffic source breakdown",
+      top_pages: "Array - Top performing pages"
+    },
+    
+    helpers: {
+      formatDate: "Formats ISO date to readable format",
+      formatNumber: "Adds commas to large numbers",
+      percentage: "Converts decimal to percentage (0.15 → 15%)",
+      ifEquals: "Conditional rendering: {{#ifEquals status 'active'}}"
+    },
+    
+    example: `<!DOCTYPE html>
+<html>
+<body>
+  <h1>{{client_name}} Report</h1>
+  <p>Period: {{period}}</p>
+  {{#each metrics}}
+  <div class="metric">
+    <h3>{{this.name}}</h3>
+    <p>{{formatNumber this.value}}</p>
+  </div>
+  {{/each}}
+</body>
+</html>`
+  });
+});
+
+// POST /api/templates/preview - Preview template with sample data
+router.post('/preview', async (req, res) => {
+  try {
+    const { html_content, css_content, data } = req.body;
+    
+    // Use your PDF service to generate HTML (not PDF)
+    const pdfService = require('../services/pdf-service');
+    const handlebars = require('handlebars');
+    
+    // Compile and render HTML
+    const template = handlebars.compile(html_content);
+    const renderedHTML = template(data || pdfService.generateMockAnalyticsData());
+    
+    // Combine with CSS
+    const fullHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          ${css_content || ''}
+          body { font-family: Arial, sans-serif; padding: 20px; }
+        </style>
+      </head>
+      <body>${renderedHTML}</body>
+      </html>
+    `;
+    
+    res.json({ 
+      success: true, 
+      html: fullHTML,
+      warnings: [] // Could add validation warnings here
+    });
+    
+  } catch (error) {
+    console.error('Preview error:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: 'Failed to render preview',
+      details: error.message 
+    });
+  }
+});
+
+// GET /api/templates/catalog - List available templates
+router.get('/catalog', (req, res) => {
+  const catalog = [
+    {
+      id: 'analytics-standard',
+      name: 'Analytics Standard',
+      description: 'Comprehensive analytics with AI insights',
+      file: 'analytics-report.html',
+      styles: ['professional', 'minimal', 'dark-mode'],
+      category: 'analytics',
+      preview_image: '/templates/previews/analytics-standard.png'
+    },
+    {
+      id: 'executive-summary',
+      name: 'Executive Summary',
+      description: 'C-suite focused with financial metrics',
+      file: 'executive-summary.html',
+      styles: ['professional', 'minimal'],
+      category: 'executive',
+      preview_image: '/templates/previews/executive-summary.png'
+    },
+    {
+      id: 'ecommerce-dashboard',
+      name: 'E-commerce Dashboard',
+      description: 'Product performance and conversion funnel',
+      file: 'ecommerce-dashboard.html',
+      styles: ['professional', 'creative'],
+      category: 'ecommerce',
+      preview_image: '/templates/previews/ecommerce-dashboard.png'
+    }
+  ];
+  
+  res.json({ success: true, templates: catalog });
+});
+
 module.exports = router;

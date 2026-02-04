@@ -1,0 +1,85 @@
+{{!< base}}
+
+{{#*inline "content"}}
+<!-- Executive Priority Metrics -->
+<div class="section" style="text-align: center; margin-bottom: 50px;">
+    <h1 style="color: #2c5aa0; font-size: 2.5rem; margin-bottom: 10px;">Executive Dashboard</h1>
+    <p style="color: #666; font-size: 1.1rem;">Period: {{periodStart}} to {{periodEnd}} | Prepared for {{clientName}} Leadership</p>
+</div>
+
+<!-- KPI Scorecard -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin: 40px 0;">
+    <div style="background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-top: 4px solid #3b82f6;">
+        <div style="font-size: 0.9rem; color: #666; text-transform: uppercase; letter-spacing: 1px;">Revenue</div>
+        <div style="font-size: 3rem; font-weight: 700; color: #2c5aa0; margin: 15px 0;">${{formatNumber metrics.totalRevenue}}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #666;">Monthly Growth</span>
+            {{#if financials.revenue_growth_positive}}
+            <span style="color: #10b981; font-weight: bold;">↑ {{financials.revenue_growth}}%</span>
+            {{else}}
+            <span style="color: #ef4444; font-weight: bold;">↓ {{financials.revenue_growth}}%</span>
+            {{/if}}
+        </div>
+    </div>
+    
+    <div style="background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-top: 4px solid #10b981;">
+        <div style="font-size: 0.9rem; color: #666; text-transform: uppercase; letter-spacing: 1px;">Profit Margin</div>
+        <div style="font-size: 3rem; font-weight: 700; color: #2c5aa0; margin: 15px 0;">{{financials.profit_margin}}%</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #666;">Industry Avg: 15%</span>
+            {{#if financials.margin_above_average}}
+            <span style="color: #10b981; font-weight: bold;">✓ Above Average</span>
+            {{else}}
+            <span style="color: #ef4444; font-weight: bold;">✗ Below Average</span>
+            {{/if}}
+        </div>
+    </div>
+    
+    <div style="background: white; border-radius: 12px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border-top: 4px solid #8b5cf6;">
+        <div style="font-size: 0.9rem; color: #666; text-transform: uppercase; letter-spacing: 1px;">Customer Growth</div>
+        <div style="font-size: 3rem; font-weight: 700; color: #2c5aa0; margin: 15px 0;">{{formatNumber metrics.newCustomers}}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #666;">LTV: ${{formatNumber financials.customer_lifetime_value}}</span>
+            <span style="color: #3b82f6; font-weight: bold;">{{financials.retention_rate}}% retained</span>
+        </div>
+    </div>
+</div>
+
+<!-- AI Strategic Insights -->
+{{#if has_ai_insights}}
+<div style="background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%); padding: 40px; border-radius: 16px; margin: 50px 0;">
+    <h2 style="color: #0ea5e9; font-size: 1.8rem; margin-bottom: 30px;">🧠 AI Strategic Insights</h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;">
+        {{#each insights}}
+        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                <div style="width: 40px; height: 40px; background: #0ea5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: white;">
+                    💡
+                </div>
+                <h3 style="color: #1e293b; margin: 0;">Strategic Insight</h3>
+            </div>
+            <p style="color: #475569; line-height: 1.6;">{{this}}</p>
+        </div>
+        {{/each}}
+    </div>
+</div>
+{{/if}}
+
+<!-- Recommendations -->
+<div style="background: #0f172a; color: white; padding: 40px; border-radius: 16px; margin-top: 40px;">
+    <h2 style="color: #60a5fa; font-size: 1.8rem; margin-bottom: 25px;">🎯 Recommended Actions</h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        {{#each recommendations}}
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; border-left: 4px solid #60a5fa;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: bold;">Priority {{@index_1}}</span>
+                <span style="font-size: 0.9rem; color: #94a3b8;">{{this.timeframe}}</span>
+            </div>
+            <p style="color: #cbd5e1; line-height: 1.5;">{{this}}</p>
+        </div>
+        {{/each}}
+    </div>
+</div>
+{{/inline}}

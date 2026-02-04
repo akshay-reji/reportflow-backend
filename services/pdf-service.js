@@ -66,6 +66,25 @@ class PDFService {
         }
     }
 
+    async getTemplateStyles(templateName) {
+  try {
+    const styleMap = {
+      'professional': 'styles/professional.css',
+      'minimal': 'styles/minimal.css',
+      'dark-mode': 'styles/dark-mode.css',
+      'creative': 'styles/creative.css'
+    };
+    
+    const styleFile = styleMap[templateName] || 'styles/professional.css';
+    const stylePath = path.join(__dirname, '..', 'templates', styleFile);
+    
+    return await fs.readFile(stylePath, 'utf8');
+  } catch (error) {
+    console.log(`Style ${templateName} not found, using default`);
+    return ''; // Fallback to inline styles
+  }
+}
+
     async generatePDFFromHTML(htmlContent, data, customCSS = null) {
         let browser = null;
         try {
