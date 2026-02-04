@@ -1,111 +1,65 @@
-// middleware/auth.js - Production-grade authentication middleware
-const jwt = require('jsonwebtoken');
-const supabase = require('../config/supabase');
+// middleware/auth.js - UPDATED: Simple API key authentication for production
+const supabase = require('../lib/supabase');
+const crypto = require('crypto');
 
-class AuthMiddleware {
-  constructor() {
-    this.JWT_SECRET = process.env.JWT_SECRET || 'reportflow-production-secret-change-in-production';
-  }
-
-  // Generate JWT token for tenant
-  generateToken(tenant) {
-    return jwt.sign(
-      {
-        tenant_id: tenant.id,
-        tenant_name: tenant.name,
-        email: tenant.email,
-        role: 'tenant_admin'
-      },
-      this.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-  }
-
-  // Verify JWT token middleware
-  async verifyToken(req, res, next) {
+const authMiddleware = {
+  // Middleware to validate tenant via API key
+  async validateTenant(req, res, next) {
     try {
-      // Get token from Authorization header
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+      const tenantId = req.headers['x-tenant-id'];
+      const apiKey = req.headers['x-api-key'];
 
-      if (!token) {
-        // Fallback to x-tenant-id for development (but warn)
-        const tenantId = req.headers['x-tenant-id'];
-        if (tenantId && process.env.NODE_ENV === 'development') {
-          console.warn('⚠️ Using x-tenant-id header for authentication (development only)');
-          const { data: tenant } = await supabase
-            .from('tenants')
-            .select('*')
-            .eq('id', tenantId)
-            .eq('status', 'active')
-            .single();
-
-          if (!tenant) {
-            return res.status(401).json({ error: 'Invalid tenant' });
-          }
-
-          req.tenant = tenant;
-          req.tenantId = tenantId;
-          req.user = { role: 'tenant_admin' };
-          return next();
-        }
-        
-        return res.status(401).json({ error: 'Access token required' });
+      // 1. Check for required headers
+      if (!tenantId || !apiKey) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Missing authentication headers. Required: x-tenant-id, x-api-key'
+        });
       }
 
-      // Verify JWT token
-      const decoded = jwt.verify(token, this.JWT_SECRET);
-      
-      // Verify tenant exists and is active
+      // 2. Fetch tenant from database (using the correct column names from your schema)
       const { data: tenant, error } = await supabase
         .from('tenants')
         .select('*')
-        .eq('id', decoded.tenant_id)
-        .eq('status', 'active')
+        // .eq('status', 'active') // REMOVED: Your schema doesn't have a 'status' column yet
+        .eq('id', tenantId)
         .single();
 
       if (error || !tenant) {
-        return res.status(401).json({ error: 'Invalid or inactive tenant' });
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid tenant ID'
+        });
       }
 
-      // Attach tenant and user info to request
+      // 3. Verify the API key against the stored hash
+      //    This requires the 'api_key_hash' column you just added.
+      const providedKeyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+
+      // IMPORTANT: Check if the hash column exists for this tenant
+      if (!tenant.api_key_hash || providedKeyHash !== tenant.api_key_hash) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid API key'
+        });
+      }
+
+      // 4. Update last access timestamp (using the new column)
+      await supabase
+        .from('tenants')
+        .update({ last_api_access: new Date().toISOString() })
+        .eq('id', tenantId);
+
+      // 5. Attach tenant info to the request for use in routes
       req.tenant = tenant;
-      req.tenantId = decoded.tenant_id;
-      req.user = {
-        id: decoded.tenant_id,
-        email: decoded.email,
-        role: decoded.role
-      };
+      req.tenantId = tenantId;
 
-      next();
+      next(); // Authentication successful, proceed to the route handler
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Invalid token' });
-      }
-      if (error.name === 'TokenExpiredError') {
-        return res.status(403).json({ error: 'Token expired' });
-      }
       console.error('Auth middleware error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal authentication server error' });
     }
   }
+};
 
-  // Admin-only middleware
-  requireAdmin(req, res, next) {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-  }
-
-  // Tenant user middleware (regular tenant users)
-  requireTenantUser(req, res, next) {
-    const allowedRoles = ['tenant_admin', 'tenant_user'];
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Tenant access required' });
-    }
-    next();
-  }
-}
-
-module.exports = new AuthMiddleware();
+module.exports = authMiddleware;

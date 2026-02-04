@@ -1,4 +1,5 @@
-const chromium = require('chrome-aws-lambda');
+const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer-core');
 const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
@@ -76,14 +77,13 @@ class PDFService {
             const fullHTML = this.wrapHTML(finalHTML, customCSS);
             
             // Launch browser (compatible with Netlify Functions)
-            const executablePath = await chromium.executablePath;
-            browser = await chromium.puppeteer.launch({
-                args: chromium.args,
-                defaultViewport: chromium.defaultViewport,
-                executablePath,
-                headless: chromium.headless,
-                ignoreHTTPSErrors: true,
-            });
+            browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(), // Note: this is now a function call
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
+        });
 
             const page = await browser.newPage();
             

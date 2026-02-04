@@ -1,7 +1,7 @@
 // routes/health.js - Comprehensive health check
 const express = require('express');
 const router = express.Router();
-const supabase = require('../config/supabase');
+const supabase = require('../lib/supabase');
 
 router.get('/', async (req, res) => {
   const healthCheck = {

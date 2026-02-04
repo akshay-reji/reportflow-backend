@@ -300,4 +300,42 @@ router.delete('/:id', checkUsage, async (req, res) => {
   }
 });
 
+// routes/templates.js - Add this route
+router.put('/:id/activate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.tenantId;
+
+    console.log(`🔍 Activation Attempt: Tenant ${tenantId}, Template ${id}`);
+
+    // 1. Deactivate others
+    const deactivateResult = await supabase
+      .from('tenant_templates')
+      .update({ is_active: false })
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true);
+    console.log('Deactivated others:', deactivateResult);
+
+    // 2. Activate this template
+    const { data, error } = await supabase
+  .from('tenant_templates')
+  .update({ is_active: true, updated_at: new Date().toISOString() })
+  .eq('id', id)
+  .eq('tenant_id', tenantId)
+  .select() // ✅ Add .select() to return the updated rows
+  .single();  // ❗ .single() expects exactly ONE row to be returned
+
+    console.log('Activation DB Result - Data:', data, 'Error:', error);
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Template not found or update failed' });
+    }
+
+    res.json({ success: true, message: 'Template activated', template: data });
+  } catch (error) {
+    console.error('Activation error:', error);
+    res.status(500).json({ error: 'Activation failed' });
+  }
+});
+
 module.exports = router;

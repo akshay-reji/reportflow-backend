@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const supabase = require('../config/supabase');
+const supabase = require('../lib/supabase');
 const authMiddleware = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
@@ -140,26 +140,26 @@ router.post('/login', [
 });
 
 // Get current tenant profile
-router.get('/profile', authMiddleware.verifyToken, async (req, res) => {
-  try {
-    const { data: subscription } = await supabase
-      .from('tenant_subscriptions')
-      .select('*')
-      .eq('tenant_id', req.tenantId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+// NEW CODE - Use the correct method
+router.get('/profile', authMiddleware.validateTenant, async (req, res) => {
+    try {
+        const { data: subscription } = await supabase
+            .from('tenant_subscriptions')
+            .select('*')
+            .eq('tenant_id', req.tenantId)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-    res.json({
-      tenant: req.tenant,
-      subscription: subscription || null,
-      user: req.user
-    });
-  } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ error: 'Failed to load profile' });
-  }
+        res.json({
+            tenant: req.tenant,
+            subscription: subscription || null,
+            user: req.user
+        });
+    } catch (error) {
+        console.error('Profile error:', error);
+        res.status(500).json({ error: 'Failed to load profile' });
+    }
 });
-
 module.exports = router;

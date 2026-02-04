@@ -71,15 +71,16 @@ app.use('/api/payment/webhook',
 );
 
 // Protected routes (auth required)
-app.use('/api/scheduler', authMiddleware.verifyToken, schedulerRoutes);
-app.use('/api/reporter', authMiddleware.verifyToken, reporterRoutes);
-app.use('/api/email', authMiddleware.verifyToken, emailRoutes);
-app.use('/api/oauth/ga', authMiddleware.verifyToken, oauthGaRoutes);
-app.use('/api/ai-insights', authMiddleware.verifyToken, aiInsightsRoutes);
-app.use('/api/oauth/meta', authMiddleware.verifyToken, oauthMetaRoutes);
-app.use('/api/unified-reporter', authMiddleware.verifyToken, unifiedReporterRoutes);
-app.use('/api/payment', authMiddleware.verifyToken, paymentRoutes);
-app.use('/api/templates', authMiddleware.verifyToken, templateRoutes);
+// Protected routes (auth required) - UPDATED (CORRECT)
+app.use('/api/scheduler', authMiddleware.validateTenant, schedulerRoutes);
+app.use('/api/reporter', authMiddleware.validateTenant, reporterRoutes);
+app.use('/api/email', authMiddleware.validateTenant, emailRoutes);
+app.use('/api/oauth/ga', authMiddleware.validateTenant, oauthGaRoutes);
+app.use('/api/ai-insights', authMiddleware.validateTenant, aiInsightsRoutes);
+app.use('/api/oauth/meta', authMiddleware.validateTenant, oauthMetaRoutes);
+app.use('/api/unified-reporter', authMiddleware.validateTenant, unifiedReporterRoutes);
+app.use('/api/payment', authMiddleware.validateTenant, paymentRoutes);
+app.use('/api/templates', authMiddleware.validateTenant, templateRoutes);
 
 // ===== ERROR HANDLING MIDDLEWARE =====
 app.use((err, req, res, next) => {
@@ -121,10 +122,10 @@ if (!process.env.NETLIFY) {
   const PORT = process.env.PORT || 3001;
   
   // Database connection test
-  const supabase = require('./config/supabase');
-  supabase.auth.getUser()
-    .then(() => console.log('✅ Database connection verified'))
-    .catch(err => console.error('❌ Database connection failed:', err.message));
+const supabase = require('./lib/supabase');
+supabase.from('tenants').select('count', { count: 'exact', head: true })
+  .then(() => console.log('✅ Database connection verified'))
+  .catch(err => console.error('❌ Database connection failed:', err.message));
   
   app.listen(PORT, () => {
     console.log(`🚀 ReportFlow Backend running on port ${PORT}`);
